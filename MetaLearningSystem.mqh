@@ -12,6 +12,7 @@
 #include <Arrays\ArrayDouble.mqh>
 #include <Trade\Trade.mqh>
 #include <RegimeDetectionSystem.mqh>
+#include <CompleteTradeRecord.mqh>
 
 //+------------------------------------------------------------------+
 //| Definir constantes faltantes                                    |
@@ -3607,6 +3608,10 @@ private:
     double m_severityScaleFactor;
     double m_recoveryRate;
 
+    // === Trade Record Storage ===
+    CompleteTradeRecord m_tradeRecords[100];  // Storage for trade records
+    int m_tradeRecordCount;                   // Number of stored records
+
 public:
     MetaLearningSystem() {
         // Initialize enhanced prediction state
@@ -3651,6 +3656,12 @@ public:
         // Inicializar patrones de error
         for(int i = 0; i < 50; i++) {
             m_errorPatterns[i].Initialize();
+        }
+
+        // Inicializar contador de registros de trade
+        m_tradeRecordCount = 0;
+        for(int i = 0; i < 100; i++) {
+            m_tradeRecords[i].Initialize();
         }
     }
 
@@ -4605,6 +4616,90 @@ double GetOverallWinRate() {
     // ====== Fin wrappers adicionales ======
 
     void AdjustAgentConviction(const int agentId, const double baseConviction) { /* opcional: learning rule */ }
+
+    //+------------------------------------------------------------------+
+    //| Trade Record Management Methods                                  |
+    //+------------------------------------------------------------------+
+
+    // Store or update a complete trade record
+    void StoreCompleteTradeRecord(const CompleteTradeRecord &record)
+    {
+        // Check if record already exists (by consensus_id)
+        int existingIdx = -1;
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i].consensus_id == record.consensus_id)
+            {
+                existingIdx = i;
+                break;
+            }
+        }
+
+        if(existingIdx >= 0)
+        {
+            // Update existing record
+            m_tradeRecords[existingIdx] = record;
+        }
+        else
+        {
+            // Add new record
+            if(m_tradeRecordCount < 100)
+            {
+                m_tradeRecords[m_tradeRecordCount] = record;
+                m_tradeRecordCount++;
+            }
+            else
+            {
+                // Array is full, shift oldest out (FIFO)
+                for(int i = 0; i < 99; i++)
+                {
+                    m_tradeRecords[i] = m_tradeRecords[i + 1];
+                }
+                m_tradeRecords[99] = record;
+            }
+        }
+    }
+
+    // Register a consensus order by linking consensus_id with order ticket
+    void RegisterConsensusOrder(ulong consensus_id, ulong ticket)
+    {
+        // Find the record with matching consensus_id
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i].consensus_id == consensus_id)
+            {
+                m_tradeRecords[i].order_ticket = ticket;
+                return;
+            }
+        }
+    }
+
+    // Get pointer to trade record by consensus_id
+    CompleteTradeRecord* GetTradeRecord(ulong consensus_id)
+    {
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i].consensus_id == consensus_id)
+            {
+                return &m_tradeRecords[i];
+            }
+        }
+        return NULL;
+    }
+
+    // Get pointer to trade record by order ticket
+    CompleteTradeRecord* GetTradeRecordByTicket(ulong ticket)
+    {
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i].order_ticket == ticket)
+            {
+                return &m_tradeRecords[i];
+            }
+        }
+        return NULL;
+    }
+
     };
 
 #endif // META_LEARNING_QUANTUM_MQH
