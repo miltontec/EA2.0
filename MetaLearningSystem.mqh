@@ -4705,6 +4705,35 @@ double GetOverallWinRate() {
     // ====== Fin wrappers adicionales ======
 
     void AdjustAgentConviction(const int agentId, const double baseConviction) { /* opcional: learning rule */ }
+
+    // ====== CompleteTradeRecord Management Methods (Stubs) ======
+    void StoreCompleteTradeRecord(CompleteTradeRecord &record)
+    {
+        // TODO: Implement storage of complete trade records
+        // This is a stub to allow compilation
+    }
+
+    CompleteTradeRecord* GetTradeRecord(ulong consensus_id)
+    {
+        // TODO: Implement retrieval of trade records by consensus ID
+        // This is a stub to allow compilation
+        return NULL;
+    }
+
+    CompleteTradeRecord* GetTradeRecordByTicket(ulong ticket)
+    {
+        // TODO: Implement retrieval of trade records by ticket
+        // This is a stub to allow compilation
+        return NULL;
+    }
+
+    void FinalizeTradeRecord(ulong ticket, double profit, bool isWin)
+    {
+        // TODO: Implement finalization of trade records
+        // This is a stub to allow compilation
+    }
+    // ====== End CompleteTradeRecord Management Methods ======
+
     };
 
 #endif // META_LEARNING_QUANTUM_MQH
