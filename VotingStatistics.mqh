@@ -12,12 +12,7 @@ double VS_MapConsensus(double p){ return p; } // stub (calibrator opcional)
 //+------------------------------------------------------------------+
 //| Enumeraciones base                                               |
 //+------------------------------------------------------------------+
-enum ENUM_VOTE_DIRECTION
-{
-    VOTE_NONE = 0,
-    VOTE_BUY = 1,
-    VOTE_SELL = -1
-};
+// ENUM_VOTE_DIRECTION is now defined in MetaLearningSystem.mqh
 
 enum ENUM_COMPONENT_TYPE
 {
@@ -31,7 +26,6 @@ enum ENUM_COMPONENT_TYPE
 //+------------------------------------------------------------------+
 //| Estructura para emoción del mercado                             |
 //+------------------------------------------------------------------+
-#include <MetaLearningSystem.mqh>
 struct MarketEmotion
 {
     double fear;        // Nivel de miedo (0-1)

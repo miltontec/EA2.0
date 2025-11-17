@@ -454,7 +454,7 @@ int OnInit()
     g_votingStats = new VotingStatistics();
     if(g_votingStats != NULL)
     {
-        g_votingStats.Initialize(g_metaLearning);
+        g_votingStats.Initialize();
         g_votingStats.SetParameters(100, MinTotalConviction, MinConsensusStrength);
         g_votingStats.SetDirectionLock(true);
         Print("✓ Neural Consensus Network inicializado");

@@ -30,6 +30,16 @@
 #define QUANTUM_ENSEMBLE_SIZE 3
 
 //+------------------------------------------------------------------+
+//| ENUM_VOTE_DIRECTION - Must be defined here for all files        |
+//+------------------------------------------------------------------+
+enum ENUM_VOTE_DIRECTION
+{
+    VOTE_NONE = 0,
+    VOTE_BUY = 1,
+    VOTE_SELL = -1
+};
+
+//+------------------------------------------------------------------+
 //| Complete Trade Record Class                                      |
 //| Stores all information about a trade from consensus to close     |
 //| NOTE: Class is used instead of struct to allow pointers in MQL5  |
