@@ -12,8 +12,11 @@
 #include <Arrays\ArrayDouble.mqh>
 #include <Trade\Trade.mqh>
 #include <RegimeDetectionSystem.mqh>
-#include <VotingStatistics.mqh>
-#include <OrderExecution.mqh>
+
+// Forward declarations to avoid circular dependencies
+struct MultiOrderCycle;
+struct ConsensusMemory;
+struct DecisionContext;
 
 //+------------------------------------------------------------------+
 //| Definir constantes faltantes                                    |
