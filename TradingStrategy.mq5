@@ -461,7 +461,7 @@ int OnInit()
     g_votingStats = new VotingStatistics();
     if(g_votingStats != NULL)
     {
-        g_votingStats.Initialize(g_metaLearning);
+        g_votingStats.Initialize();
         g_votingStats.SetParameters(100, MinTotalConviction, MinConsensusStrength);
         g_votingStats.SetDirectionLock(true);
         Print("✓ Neural Consensus Network inicializado");
@@ -551,9 +551,9 @@ void OnDeinit(const int reason)
         Print("ML - Estadísticas finales de agentes:");
         for(int i = 0; i < 5; i++)
         {
-            double winRate = g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i);
-            string privilege = g_metaLearning.GetAgentPrivilegeLevel((ENUM_COMPONENT_TYPE)i);
-            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+            double winRate = g_metaLearning.GetAgentWinRate(i);
+            string privilege = g_metaLearning.GetAgentPrivilegeLevel(i);
+            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i),
                   ": WR ", DoubleToString(winRate * 100, 1), "% - ", privilege);
         }
         
@@ -1181,7 +1181,7 @@ bool ApplyIntelligentVeto()
     // Encontrar los 2 mejores agentes
     for(int i = 0; i < 5; i++)
     {
-        double wr = g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i);
+        double wr = g_metaLearning.GetAgentWinRate(i);
         if(wr > topAgentWR[0])
         {
             topAgentWR[1] = topAgentWR[0];
@@ -2299,8 +2299,9 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
         else
         {
             // Fallback: aprendizaje genérico
-            g_metaLearning.LearnFromResult(orderTicket, profit, isWin, 
-                                          g_market.volatilityRatio, 0, 0);
+            double contributors[5] = {0.2, 0.2, 0.2, 0.2, 0.2}; // Distribución uniforme
+            g_metaLearning.LearnFromResult(isWin, profit, contributors,
+                                          5, "fallback", consensus_id);
         }
     }
     
@@ -2759,7 +2760,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
         {
             if(g_voteHistory[voteIndex].agents[i].voted)
             {
-                double wr = g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i);
+                double wr = g_metaLearning.GetAgentWinRate(i);
                 Print(GetAgentName((ENUM_COMPONENT_TYPE)i), ": ",
                       g_metaLearning.m_agentStats[i].trades, " trades, ",
                       g_metaLearning.m_agentStats[i].wins, " wins (",
@@ -2965,7 +2966,7 @@ void UpdateAllAgentStatsFromCycle(bool success, double profit)
     Print("\n► Estadísticas actualizadas:");
     for(int i = 0; i < 5; i++)
     {
-        double wr = g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i);
+        double wr = g_metaLearning.GetAgentWinRate(i);
         Print("  ", g_metaLearning.m_agentNames[i], ": ",
               g_metaLearning.m_agentStats[i].trades, " trades, ",
               g_metaLearning.m_agentStats[i].wins, " wins (",
@@ -4212,12 +4213,12 @@ void ShowPerformanceReport()
     for(int i = 0; i < 5; i++)
     {
         ENUM_COMPONENT_TYPE component = (ENUM_COMPONENT_TYPE)i;
-        
+
         // Obtener datos FRESCOS
-        double winRate = g_metaLearning.GetAgentWinRate(component);
-        string privilege = g_metaLearning.GetAgentPrivilegeLevel(component);
-        double weight = g_metaLearning.GetAgentWeight(component);
-        bool hasVeto = g_metaLearning.AgentHasVetoPower(component);
+        double winRate = g_metaLearning.GetAgentWinRate(i);
+        string privilege = g_metaLearning.GetAgentPrivilegeLevel(i);
+        double weight = g_metaLearning.GetAgentWeight(i);
+        bool hasVeto = g_metaLearning.AgentHasVetoPower(i);
         
         Print("\n▶ ", g_metaLearning.m_agentNames[i], " [", privilege, "]");
         Print("╟─ Trades: ", g_metaLearning.m_agentStats[i].trades, 
@@ -4323,7 +4324,7 @@ void ShowPerformanceReport()
             {
                 Print("  Trades: ", g_metaLearning.m_agentStats[i].trades);
                 Print("  Win Rate: ", DoubleToString(
-                    g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i) * 100, 1), "%");
+                    g_metaLearning.GetAgentWinRate(i) * 100, 1), "%");
                 break;
             }
         }
@@ -4609,10 +4610,10 @@ void CheckAndReportSignificantChanges()
         
         for(int i = 0; i < 5; i++)
         {
-            string oldPriv = g_metaLearning.GetAgentPrivilegeLevel((ENUM_COMPONENT_TYPE)i);
+            string oldPriv = g_metaLearning.GetAgentPrivilegeLevel(i);
             g_metaLearning.CalculateAgentPrivileges();
-            string newPriv = g_metaLearning.GetAgentPrivilegeLevel((ENUM_COMPONENT_TYPE)i);
-            
+            string newPriv = g_metaLearning.GetAgentPrivilegeLevel(i);
+
             if(oldPriv != newPriv)
             {
                 significantChange = true;
