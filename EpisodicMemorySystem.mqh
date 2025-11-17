@@ -85,13 +85,7 @@ struct AccumulationContext
 //+------------------------------------------------------------------+
 //| Estructura de episodio completo                                 |
 //+------------------------------------------------------------------+
-
-//+------------------------------------------------------------------+
-//| CompleteTradeRecord: class version to allow pointers in MQL5     |
-//+------------------------------------------------------------------+
-#include <CompleteTradeRecord.mqh>
-
-
+// CompleteTradeRecord is now defined in MetaLearningSystem.mqh
 
 
 //=== Guarded MarketPattern definition =====================================
