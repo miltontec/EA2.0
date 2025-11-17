@@ -11,9 +11,10 @@
 //+------------------------------------------------------------------+
 //| INCLUDES                                                         |
 //+------------------------------------------------------------------+
+// MetaLearningSystem must be included first to define ENUM_VOTE_DIRECTION
+#include <MetaLearningSystem.mqh>
 #include <SupportResistance.mqh>
 #include <VotingStatistics.mqh>
-#include <MetaLearningSystem.mqh>
 #include <OrderExecution.mqh>
 #include <AccumulationZones.mqh>
 #include <PatternMemory.mqh>
