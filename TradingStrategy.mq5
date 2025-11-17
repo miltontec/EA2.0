@@ -3437,8 +3437,9 @@ void RegisterConsensusDecision()
         consensusMem.direction = g_consensusResult.final_direction;
         consensusMem.dominant_agent = g_consensusResult.leading_agent;
         consensusMem.context = g_decisionContext;
-        
-        g_metaLearning.RecordConsensusDecision(consensusMem);
+
+        // TODO: RecordConsensusDecision() method not implemented
+        // g_metaLearning.RecordConsensusDecision(consensusMem);
     }
 }
 
@@ -4116,6 +4117,8 @@ void PrintNegotiationContextOptimized(double historicalSuccess, double predictio
     Print("► Éxito histórico similar: ", DoubleToString(historicalSuccess * 100, 1), "%");
     Print("► Predicción ML: ", DoubleToString(prediction * 100, 1), "%");
     
+    // TODO: GetAgentContextualPerformance() method not implemented
+    /*
     if(g_metaLearning != NULL)
     {
         // Mostrar performance contextual de agentes
@@ -4124,7 +4127,7 @@ void PrintNegotiationContextOptimized(double historicalSuccess, double predictio
         {
             double perf = g_metaLearning.GetAgentContextualPerformance(
                 (ENUM_COMPONENT_TYPE)i, g_decisionContext);
-            
+
             if(perf > 0.65 || perf < 0.35)
             {
                 Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), ": ",
@@ -4263,19 +4266,22 @@ void ShowPerformanceReport()
             changeCount++;
         }
         lastPrivileges[i] = privilege;
-        
+
+        // TODO: GetAgentContextualPerformance() method not implemented
+        /*
         // Performance contextual
         if(g_EnableRegimeDetection && g_regimeDetector != NULL)
         {
             double regimePerf = g_metaLearning.GetAgentContextualPerformance(
                 component, g_decisionContext);
-            
+
             if(regimePerf != winRate) // Si difiere del general
             {
-                Print("╟─ 📊 En régimen actual: ", 
+                Print("╟─ 📊 En régimen actual: ",
                       DoubleToString(regimePerf * 100, 1), "%");
             }
         }
+        */
         
         Print("╚════════════════════════════════════════════════════");
     }
@@ -4301,16 +4307,19 @@ void ShowPerformanceReport()
         globalWR = g_votingStats.GetSuccessRate();
         Print("▶ Win Rate global: ", DoubleToString(globalWR * 100, 1), "%");
     }
-    
+
+    // TODO: GetConsensusSuccessRate() method not implemented
+    /*
     // Consenso
     double consensusWR = g_metaLearning.GetConsensusSuccessRate();
     Print("▶ Win Rate consenso: ", DoubleToString(consensusWR * 100, 1), "%");
-    
+
     // Discrepancia check
     if(MathAbs(globalWR - consensusWR) > 0.1)
     {
         Print("⚠ Discrepancia entre win rates detectada");
     }
+    */
     
     // Master Agent
     string currentMaster = g_metaLearning.GetMasterAgent();

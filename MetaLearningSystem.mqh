@@ -3640,16 +3640,26 @@ struct AgentStats {
     double weight;          // NUEVO: para ajustes dinámicos
     bool   has_veto;        // NUEVO: para privilegios
     int    privilege_level; // NUEVO: 0=Novice, 1=Senior, 2=Master, 3=Oracle
-    
+    int    trades_as_leader;
+    int    wins_as_leader;
+    double profit_as_leader;
+    double max_drawdown;
+    datetime last_update;
+
     AgentStats() {
-        trades = 0; 
+        trades = 0;
         wins = 0;
-        consecutive_wins = 0; 
+        consecutive_wins = 0;
         consecutive_losses = 0;
         total_profit = 0.0;
         weight = 1.0;
         has_veto = false;
         privilege_level = 0;
+        trades_as_leader = 0;
+        wins_as_leader = 0;
+        profit_as_leader = 0.0;
+        max_drawdown = 0.0;
+        last_update = 0;
     }
 };
 
