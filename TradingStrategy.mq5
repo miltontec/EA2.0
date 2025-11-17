@@ -856,9 +856,9 @@ void SynchronizeAllSystems()
             metrics[0] = g_market.volatilityRatio;
             metrics[1] = g_decisionContext.momentum;
             metrics[2] = 0.0;
-            
-            // Esto permite a ML ajustar sus pesos internos
-            g_metaLearning.DetectRegimeChange(metrics);
+
+            // TODO: DetectRegimeChange method not implemented in MetaLearningSystem
+            // g_metaLearning.DetectRegimeChange(metrics);
         }
         
         // Obtener estadísticas del régimen desde EMS
@@ -897,16 +897,19 @@ void SynchronizeAllSystems()
     // 3. Sincronizar estadísticas de agentes
     if(g_metaLearning != NULL && g_votingStats != NULL)
     {
+        // TODO: GetConsensusSuccessRate method not implemented
+        /*
         // Asegurar que las tasas de éxito coincidan
         double globalSuccessRate = g_votingStats.GetSuccessRate();
         double mlSuccessRate = g_metaLearning.GetConsensusSuccessRate();
-        
+
         if(MathAbs(globalSuccessRate - mlSuccessRate) > 0.1)
         {
-            Print("⚠️ Discrepancia en tasas de éxito: VS ", 
+            Print("⚠️ Discrepancia en tasas de éxito: VS ",
                   DoubleToString(globalSuccessRate * 100, 1), "% vs ML ",
                   DoubleToString(mlSuccessRate * 100, 1), "%");
         }
+        */
     }
     
     Print("✓ Sistemas sincronizados");
@@ -1085,24 +1088,24 @@ void AdjustAgentWeightsDynamically()
         {
             // Reducir peso drásticamente
             g_dynamicWeights[i] = 0.5;
-            Print("⚠️ ", GetAgentName(i), " peso reducido a 0.5 por mal rendimiento");
+            Print("⚠️ ", GetAgentName((ENUM_COMPONENT_TYPE)i), " peso reducido a 0.5 por mal rendimiento");
         }
         else if(recentPerformance > 0.7) // Win rate > 70%
         {
             // Aumentar peso significativamente
             g_dynamicWeights[i] = 2.0;
-            Print("✅ ", GetAgentName(i), " peso aumentado a 2.0 por excelente rendimiento");
+            Print("✅ ", GetAgentName((ENUM_COMPONENT_TYPE)i), " peso aumentado a 2.0 por excelente rendimiento");
         }
         else
         {
             g_dynamicWeights[i] = 1.0;
         }
-        
+
         // Super-boost para agentes en racha
         if(g_metaLearning.m_agentStats[i].consecutive_wins >= 5)
         {
             g_dynamicWeights[i] *= 1.5;
-            Print("🔥 ", GetAgentName(i), " en racha! Peso x1.5");
+            Print("🔥 ", GetAgentName((ENUM_COMPONENT_TYPE)i), " en racha! Peso x1.5");
         }
     }
 }
