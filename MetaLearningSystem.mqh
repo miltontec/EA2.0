@@ -12,6 +12,8 @@
 #include <Arrays\ArrayDouble.mqh>
 #include <Trade\Trade.mqh>
 #include <RegimeDetectionSystem.mqh>
+#include <VotingStatistics.mqh>
+#include <OrderExecution.mqh>
 
 //+------------------------------------------------------------------+
 //| Definir constantes faltantes                                    |
@@ -4733,6 +4735,48 @@ double GetOverallWinRate() {
         // This is a stub to allow compilation
     }
     // ====== End CompleteTradeRecord Management Methods ======
+
+    // ====== Additional Missing Methods (Stubs) ======
+    double GetConsensusSuccessRate()
+    {
+        // Return overall win rate as consensus success rate
+        return GetOverallWinRate();
+    }
+
+    void DetectRegimeChange(double &metrics[])
+    {
+        // TODO: Implement regime change detection based on metrics
+        // This is a stub to allow compilation
+    }
+
+    void LearnFromMultiOrderCycle(const MultiOrderCycle &multiOrder)
+    {
+        // TODO: Implement learning from multi-order cycles
+        // This is a stub to allow compilation
+    }
+
+    void RecordConsensusDecision(const ConsensusMemory &consensusMem)
+    {
+        // TODO: Implement recording of consensus decisions
+        // This is a stub to allow compilation
+    }
+
+    void RegisterConsensusOrder(ulong consensus_id, ulong ticket)
+    {
+        // TODO: Implement registration of consensus orders
+        // This is a stub to allow compilation
+    }
+
+    double GetAgentContextualPerformance(int component_type, const DecisionContext &context)
+    {
+        // Return basic win rate for now
+        if(component_type >= 0 && component_type < QUANTUM_MAX_AGENTS)
+        {
+            return GetAgentWinRate(component_type);
+        }
+        return 0.5;
+    }
+    // ====== End Additional Missing Methods ======
 
     };
 
