@@ -2282,17 +2282,17 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
     {
         if(consensus_id > 0)
         {
-            // Finalizar el trade record con datos reales
-            g_metaLearning.FinalizeTradeRecord(orderTicket, profit, isWin);
-            
+            // TODO: FinalizeTradeRecord method not implemented
+            // g_metaLearning.FinalizeTradeRecord(orderTicket, profit, isWin);
+
             // Actualizar estadísticas individuales de agentes
             UpdateAgentStatsFromVoteHistory(orderTicket, isWin, profit);
         }
         else
         {
-            // Fallback: aprendizaje genérico
-            g_metaLearning.LearnFromResult(orderTicket, profit, isWin, 
-                                          g_market.volatilityRatio, 0, 0);
+            // TODO: LearnFromResult requires different parameters (bool, double, double&[], int, string, ulong)
+            // g_metaLearning.LearnFromResult(orderTicket, profit, isWin,
+            //                               g_market.volatilityRatio, 0, 0);
         }
     }
     
@@ -2391,6 +2391,8 @@ void RegisterConsensusDecisionWithTracking()
 {
     if(g_metaLearning != NULL && g_voteHistoryCount > 0)
     {
+        // TODO: RecordConsensusDecision method not implemented in MetaLearningSystem
+        /*
         ConsensusMemory consensusMem;
         consensusMem.consensus_id = g_current_consensus_id;
         consensusMem.timestamp = TimeCurrent();
@@ -2398,10 +2400,10 @@ void RegisterConsensusDecisionWithTracking()
         consensusMem.direction = g_consensusResult.final_direction;
         consensusMem.dominant_agent = g_consensusResult.leading_agent;
         consensusMem.context = g_decisionContext;
-        
+
         // CORREGIDO: Acceder al elemento por índice, no por referencia
         int lastVoteIndex = g_voteHistoryCount - 1;
-        
+
         for(int i = 0; i < 5; i++)
         {
             if(g_voteHistory[lastVoteIndex].agents[i].voted)
@@ -2411,8 +2413,9 @@ void RegisterConsensusDecisionWithTracking()
                 consensusMem.agent_votes[i] = g_voteHistory[lastVoteIndex].agents[i].direction;
             }
         }
-        
+
         g_metaLearning.RecordConsensusDecision(consensusMem);
+        */
     }
 }
 
