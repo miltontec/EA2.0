@@ -88,25 +88,17 @@ enum ENUM_MARKET_SESSION {
     SESSION_CLOSED = 4
 };
 
-// Forward declaration for ENUM_VOTE_DIRECTION
-#ifndef ENUM_VOTE_DIRECTION
-enum ENUM_VOTE_DIRECTION {
-    VOTE_NONE = 0,
-    VOTE_BUY = 1,
-    VOTE_SELL = -1
-};
-#endif
-
 //+------------------------------------------------------------------+
-//| Complete Trade Record Structure                                 |
+//| Complete Trade Record Class (allows pointers in MQL5)          |
 //+------------------------------------------------------------------+
-struct CompleteTradeRecord
+class CompleteTradeRecord
 {
+public:
     // Consensus Information
     ulong              consensus_id;              // Unique consensus ID
     ulong              order_ticket;              // Order ticket number
     datetime           consensus_time;            // Time of consensus decision
-    ENUM_VOTE_DIRECTION consensus_direction;     // BUY/SELL direction
+    int                consensus_direction;       // BUY/SELL direction (using int for compatibility)
     double             consensus_strength;       // Strength of consensus (0-1)
     double             total_conviction;         // Total conviction level (0-1)
     string             leading_agent;            // Name of leading agent
@@ -149,6 +141,51 @@ struct CompleteTradeRecord
     double             learning_value;           // Learning value for system
     double             max_favorable_excursion;  // Maximum favorable move (MFE)
     double             max_adverse_excursion;    // Maximum adverse move (MAE)
+
+    // Constructor
+    CompleteTradeRecord()
+    {
+        consensus_id = 0;
+        order_ticket = 0;
+        consensus_time = 0;
+        consensus_direction = 0;
+        consensus_strength = 0.0;
+        total_conviction = 0.0;
+        leading_agent = "";
+        veto_used = false;
+        initial_volatility = 0.0;
+        initial_momentum = 0.0;
+        initial_fear = 0.0;
+        initial_greed = 0.0;
+        session_type = 0;
+        sr_level_strength = 0.0;
+        order_open_time = 0;
+        order_open_price = 0.0;
+        order_lot_size = 0.0;
+        order_sl = 0.0;
+        order_tp = 0.0;
+        order_position_in_cycle = 0;
+        order_close_time = 0;
+        order_close_price = 0.0;
+        order_profit = 0.0;
+        order_profit_points = 0.0;
+        order_success = false;
+        order_duration_bars = 0;
+        max_profit_reached = 0.0;
+        max_drawdown_reached = 0.0;
+        consensus_quality_confirmed = false;
+        learning_value = 0.0;
+        max_favorable_excursion = 0.0;
+        max_adverse_excursion = 0.0;
+
+        for(int i = 0; i < 5; i++)
+        {
+            participating_agents[i] = "";
+            agent_votes[i] = 0.0;
+            agent_confidences[i] = 0.0;
+            agent_performance_impact[i] = 0.0;
+        }
+    }
 };
 
 //+------------------------------------------------------------------+

@@ -1697,7 +1697,7 @@ void ProcessExecutingOrder()
     CompleteTradeRecord preRecord;
     preRecord.consensus_id = g_consensusResult.consensus_id;
     preRecord.consensus_time = TimeCurrent();
-    preRecord.consensus_direction = g_consensusResult.final_direction;
+    preRecord.consensus_direction = (int)g_consensusResult.final_direction;
     preRecord.consensus_strength = g_consensusResult.consensus_strength;
     preRecord.total_conviction = g_consensusResult.total_conviction;
     preRecord.leading_agent = g_consensusResult.leading_agent;
