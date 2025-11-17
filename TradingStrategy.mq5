@@ -40,21 +40,12 @@ AgentCycleVote g_agents[5];
 //+------------------------------------------------------------------+
 enum TRADING_STATE
 {
-    STATE_WAITING_SR_TOUCH,         
-    STATE_CHECKING_ACCUMULATION,    
-    STATE_NEURAL_NEGOTIATION,       
-    STATE_EXECUTING_ORDER,          
-    STATE_MONITORING_POSITIONS,     
+    STATE_WAITING_SR_TOUCH,
+    STATE_CHECKING_ACCUMULATION,
+    STATE_NEURAL_NEGOTIATION,
+    STATE_EXECUTING_ORDER,
+    STATE_MONITORING_POSITIONS,
     STATE_CYCLE_COMPLETE
-};
-
-enum ENUM_MARKET_SESSION
-{
-    SESSION_ASIAN,
-    SESSION_LONDON,
-    SESSION_NEWYORK,
-    SESSION_OVERLAP,
-    SESSION_CLOSED
 };
 
 //+------------------------------------------------------------------+
@@ -553,7 +544,7 @@ void OnDeinit(const int reason)
         {
             double winRate = g_metaLearning.GetAgentWinRate(i);
             string privilege = g_metaLearning.GetAgentPrivilegeLevel(i);
-            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i),
+            Print("  ", GetAgentName(i),
                   ": WR ", DoubleToString(winRate * 100, 1), "% - ", privilege);
         }
         
@@ -1720,7 +1711,7 @@ void ProcessExecutingOrder()
         {
             if(g_voteHistory[lastVoteIdx].agents[i].voted)
             {
-                preRecord.participating_agents[i] = GetAgentName((ENUM_COMPONENT_TYPE)i);
+                preRecord.participating_agents[i] = GetAgentName(i);
                 preRecord.agent_confidences[i] = g_voteHistory[lastVoteIdx].agents[i].adjustedConfidence;
                 preRecord.agent_votes[i] = g_voteHistory[lastVoteIdx].agents[i].confidence;
             }
@@ -2415,7 +2406,7 @@ void RegisterConsensusDecisionWithTracking()
         {
             if(g_voteHistory[lastVoteIndex].agents[i].voted)
             {
-                consensusMem.participating_agents[i] = GetAgentName((ENUM_COMPONENT_TYPE)i);
+                consensusMem.participating_agents[i] = GetAgentName(i);
                 consensusMem.agent_confidences[i] = g_voteHistory[lastVoteIndex].agents[i].adjustedConfidence;
                 consensusMem.agent_votes[i] = g_voteHistory[lastVoteIndex].agents[i].direction;
             }
@@ -2676,7 +2667,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
         {
             if(!g_voteHistory[voteIndex].agents[i].voted)
             {
-                Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), " - No votó (sin cambios)");
+                Print("  ", GetAgentName(i), " - No votó (sin cambios)");
                 continue;
             }
             
@@ -2694,7 +2685,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
                 g_metaLearning.m_agentStats[i].consecutive_losses = 0;
                 g_voteHistory[voteIndex].agents[i].wasCorrect = true;
                 
-                Print("  ✅ ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+                Print("  ✅ ", GetAgentName(i), 
                       " - Votó CORRECTAMENTE (", 
                       (g_voteHistory[voteIndex].agents[i].direction == VOTE_BUY ? "BUY" : "SELL"),
                       ") y GANÓ");
@@ -2705,7 +2696,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
                 g_metaLearning.m_agentStats[i].consecutive_losses++;
                 g_metaLearning.m_agentStats[i].consecutive_wins = 0;
                 
-                Print("  ❌ ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+                Print("  ❌ ", GetAgentName(i), 
                       " - Votó INCORRECTAMENTE (", 
                       (g_voteHistory[voteIndex].agents[i].direction == VOTE_BUY ? "BUY" : "SELL"),
                       ") - No suma win");
@@ -2716,7 +2707,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
                 g_metaLearning.m_agentStats[i].consecutive_losses++;
                 g_metaLearning.m_agentStats[i].consecutive_wins = 0;
                 
-                Print("  ⚠️ ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+                Print("  ⚠️ ", GetAgentName(i), 
                       " - Votó correctamente pero PERDIÓ");
             }
             else
@@ -2725,7 +2716,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
                 g_metaLearning.m_agentStats[i].consecutive_losses++;
                 g_metaLearning.m_agentStats[i].consecutive_wins = 0;
                 
-                Print("  ❌ ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+                Print("  ❌ ", GetAgentName(i), 
                       " - Votó incorrectamente y perdió");
             }
             
@@ -2739,7 +2730,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
             g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
             
             // Si fue el líder
-            if(g_consensusResult.leading_agent == GetAgentName((ENUM_COMPONENT_TYPE)i))
+            if(g_consensusResult.leading_agent == GetAgentName(i))
             {
                 g_metaLearning.m_agentStats[i].trades_as_leader++;
                 g_metaLearning.m_agentStats[i].profit_as_leader += profit;
@@ -2761,7 +2752,7 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
             if(g_voteHistory[voteIndex].agents[i].voted)
             {
                 double wr = g_metaLearning.GetAgentWinRate(i);
-                Print(GetAgentName((ENUM_COMPONENT_TYPE)i), ": ",
+                Print(GetAgentName(i), ": ",
                       g_metaLearning.m_agentStats[i].trades, " trades, ",
                       g_metaLearning.m_agentStats[i].wins, " wins (",
                       DoubleToString(wr * 100, 1), "%)");
@@ -2851,7 +2842,7 @@ void ForceUpdateAgentStats()
         g_metaLearning.m_agentStats[i].total_profit += totalProfit;
         g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
         
-        Print("Actualizado ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+        Print("Actualizado ", GetAgentName(i), 
               " - Trades: ", g_metaLearning.m_agentStats[i].trades,
               " Wins: ", g_metaLearning.m_agentStats[i].wins);
     }
@@ -4126,7 +4117,7 @@ void PrintNegotiationContextOptimized(double historicalSuccess, double predictio
             
             if(perf > 0.65 || perf < 0.35)
             {
-                Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), ": ",
+                Print("  ", GetAgentName(i), ": ",
                       DoubleToString(perf * 100, 1), "%",
                       perf > 0.65 ? " ✓" : " ⚠");
             }
@@ -4617,7 +4608,7 @@ void CheckAndReportSignificantChanges()
             if(oldPriv != newPriv)
             {
                 significantChange = true;
-                Print("*** ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+                Print("*** ", GetAgentName(i), 
                       " cambió de ", oldPriv, " a ", newPriv, " ***");
             }
         }
@@ -4684,15 +4675,15 @@ string SessionToString(ENUM_MARKET_SESSION session)
     }
 }
 
-string GetAgentName(ENUM_COMPONENT_TYPE type)
+string GetAgentName(int type)
 {
     switch(type)
     {
-        case COMPONENT_SUPPORT_RESIST: return "S/R";
-        case COMPONENT_ACCUM_ZONES: return "Accum";
-        case COMPONENT_PATTERN_MEMORY: return "Pattern";
-        case COMPONENT_BREAKOUT_DETECT: return "Breakout";
-        case COMPONENT_INSTITUTIONAL: return "Inst";
+        case 0: return "S/R";       // COMPONENT_SUPPORT_RESIST
+        case 1: return "Accum";     // COMPONENT_ACCUM_ZONES
+        case 2: return "Pattern";   // COMPONENT_PATTERN_MEMORY
+        case 3: return "Breakout";  // COMPONENT_BREAKOUT_DETECT
+        case 4: return "Inst";      // COMPONENT_INSTITUTIONAL
         default: return "Unknown";
     }
 }

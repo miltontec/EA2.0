@@ -87,9 +87,9 @@ struct AccumulationContext
 //+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
-//| CompleteTradeRecord: class version to allow pointers in MQL5     |
+//| CompleteTradeRecord: now defined in MetaLearningSystem.mqh      |
 //+------------------------------------------------------------------+
-#include <CompleteTradeRecord.mqh>
+// CompleteTradeRecord is now defined in MetaLearningSystem.mqh
 
 
 
