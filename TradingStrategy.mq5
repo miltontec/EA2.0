@@ -1506,11 +1506,12 @@ void ProcessNeuralNegotiationOptimized()
         mlPrediction = g_metaLearning.PredictOutcomeEnhanced(features, Symbol());
         Print("► Predicción ML: ", DoubleToString(mlPrediction * 100, 1), "%");
     }
-    
+
     // Resetear y recopilar votos
-    g_votingStats.Reset();
+    // TODO: Reset() method not implemented in VotingStatistics
+    // g_votingStats.Reset();
     g_votingStats.SetCurrentConsensusID(consensus_id);
-    
+
     int votesCollected = CollectAllVotesWithTracking(consensus_id);
     Print("► Agentes participantes: ", votesCollected);
     
@@ -1611,7 +1612,8 @@ void ProcessNeuralNegotiationBasic()
     // 2. Resetear sistema de votación
     if(g_votingStats != NULL)
     {
-        g_votingStats.Reset();
+        // TODO: Reset() method not implemented in VotingStatistics
+        // g_votingStats.Reset();
         g_votingStats.SetCurrentConsensusID(consensus_id);
     }
     
@@ -1950,11 +1952,12 @@ void ProcessCycleComplete()
         
         // APRENDIZAJE PRINCIPAL
         Print("► Iniciando aprendizaje en MetaLearning...");
-        g_metaLearning.LearnFromMultiOrderCycle(g_orderExecution.m_multiOrder);
-        
+        // TODO: LearnFromMultiOrderCycle() method not implemented
+        // g_metaLearning.LearnFromMultiOrderCycle(g_orderExecution.m_multiOrder);
+
         // ACTUALIZACIÓN FORZADA DE ESTADÍSTICAS
         UpdateAllAgentStatsFromCycle(success, cycleProfit);
-        
+
         // GUARDAR INMEDIATAMENTE
         g_metaLearning.SaveToFiles();
         Print("✓ MetaLearning actualizado y guardado");
@@ -2187,15 +2190,18 @@ void OnRegimeChange(ENUM_MARKET_REGIME oldRegime, ENUM_MARKET_REGIME newRegime)
         }
         
         // NUEVO: Notificar a ML para ajustar pesos dinámicamente
+        // TODO: DetectRegimeChange() method not implemented
+        /*
         if(g_metaLearning != NULL)
         {
             double market_metrics[3];
             market_metrics[0] = g_market.volatilityRatio;
             market_metrics[1] = 0.0; // trend strength
             market_metrics[2] = 0.0; // correlation change
-            
+
             g_metaLearning.DetectRegimeChange(market_metrics);
         }
+        */
     }
     
     // Reset contadores para nuevo régimen
