@@ -1771,25 +1771,24 @@ void ProcessExecutingOrder()
                 if(g_metaLearning != NULL && ticket > 0)
                 {
                     g_metaLearning.RegisterConsensusOrder(g_consensusResult.consensus_id, ticket);
-                    
+
                     // Actualizar el registro con datos de la orden
                     CompleteTradeRecord* record = g_metaLearning.GetTradeRecord(g_consensusResult.consensus_id);
                     if(record != NULL)
                     {
-                        record->order_ticket = ticket;
-                        record->order_position_in_cycle = 1;
+                        record.order_ticket = ticket;
+                        record.order_position_in_cycle = 1;
 
                         if(PositionSelectByTicket(ticket))
                         {
-                            record->order_open_time = (datetime)PositionGetInteger(POSITION_TIME);
-                            record->order_open_price = PositionGetDouble(POSITION_PRICE_OPEN);
-                            record->order_lot_size = PositionGetDouble(POSITION_VOLUME);
-                            record->order_sl = PositionGetDouble(POSITION_SL);
-                            record->order_tp = PositionGetDouble(POSITION_TP);
+                            record.order_open_time = (datetime)PositionGetInteger(POSITION_TIME);
+                            record.order_open_price = PositionGetDouble(POSITION_PRICE_OPEN);
+                            record.order_lot_size = PositionGetDouble(POSITION_VOLUME);
+                            record.order_sl = PositionGetDouble(POSITION_SL);
+                            record.order_tp = PositionGetDouble(POSITION_TP);
                         }
 
-                        // Dereference pointer when passing to StoreCompleteTradeRecord
-                        g_metaLearning.StoreCompleteTradeRecord(*record);
+                        // StoreCompleteTradeRecord will update the existing record
                         Print("✓ Registro actualizado con datos de orden");
                     }
                 }
@@ -2079,9 +2078,9 @@ void MonitorClosedOrders()
         if(g_metaLearning != NULL)
         {
             CompleteTradeRecord* record = g_metaLearning.GetTradeRecordByTicket(orderTicket);
-            if(record != NULL && record->consensus_id > 0)
+            if(record != NULL && record.consensus_id > 0)
             {
-                Print("✓ Encontrado registro con consensus_id: ", record->consensus_id);
+                Print("✓ Encontrado registro con consensus_id: ", record.consensus_id);
 
                 // Actualizar estadísticas basándose en el registro completo
                 UpdateStatsFromCompleteRecord(record, isWin, totalProfit);
@@ -2256,7 +2255,7 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
         tradeRecord = g_metaLearning.GetTradeRecordByTicket(orderTicket);
         if(tradeRecord != NULL)
         {
-            consensus_id = tradeRecord->consensus_id;
+            consensus_id = tradeRecord.consensus_id;
             Print("✓ Trade record encontrado - Consensus ID: ", consensus_id);
         }
     }
@@ -2330,9 +2329,9 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
             // Si tenemos el trade record completo, usar esos datos
             if(tradeRecord != NULL)
             {
-                episodeRecord.max_favorable_excursion = tradeRecord->max_favorable_excursion;
-                episodeRecord.max_adverse_excursion = tradeRecord->max_adverse_excursion;
-                episodeRecord.order_duration_bars = tradeRecord->order_duration_bars;
+                episodeRecord.max_favorable_excursion = tradeRecord.max_favorable_excursion;
+                episodeRecord.max_adverse_excursion = tradeRecord.max_adverse_excursion;
+                episodeRecord.order_duration_bars = tradeRecord.order_duration_bars;
             }
             
             // Completar el episodio
@@ -3019,8 +3018,8 @@ void UpdateStatsFromCompleteRecord(CompleteTradeRecord* record, bool isWin, doub
         // Verificar participación del agente
         for(int j = 0; j < 5; j++)
         {
-            if(record->participating_agents[j] == g_metaLearning.m_agentNames[i] &&
-               record->agent_confidences[j] > 0)
+            if(record.participating_agents[j] == g_metaLearning.m_agentNames[i] &&
+               record.agent_confidences[j] > 0)
             {
                 participated = true;
                 break;
