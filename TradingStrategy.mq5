@@ -32,6 +32,21 @@ struct AgentCycleVote
 
 // Array global con el estado de los 5 agentes principales
 AgentCycleVote g_agents[5];
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: Estructura para guardar features por ticket           |
+//+------------------------------------------------------------------+
+struct TicketFeatures
+{
+    ulong ticket;
+    double features[20];
+    datetime timestamp;
+};
+
+// Guardar últimos 100 tickets
+TicketFeatures g_ticketFeatures[100];
+int g_ticketFeaturesCount = 0;
+
 //+------------------------------------------------------------------+
 
 
@@ -726,7 +741,10 @@ void OnTimer()
     if(g_orderExecution != NULL && g_orderExecution.m_multiOrder.cycleActive)
     {
         g_orderExecution.MonitorMultiplePositions();
-        
+
+        // ✨ NUEVO: Trailing adaptativo por rally
+        UpdateAdaptiveTrailing();
+
         // Debug periódico
         static datetime lastDebugTime = 0;
         if(ShowDebugInfo && TimeCurrent() - lastDebugTime > 30)
@@ -734,7 +752,7 @@ void OnTimer()
             lastDebugTime = TimeCurrent();
             PrintCycleDebugInfo();
         }
-        
+
         // Si no hay órdenes activas, resetear
         if(g_orderExecution.m_multiOrder.orderCount == 0)
         {
@@ -1850,9 +1868,14 @@ void ProcessExecutingOrder()
                 
                 // Asegurar consensus_id en el array
                 g_orderExecution.m_multiOrder.consensus_ids[0] = g_consensusResult.consensus_id;
-                
+
                 Print("✓ Primera orden ejecutada - Ticket: ", ticket);
-                
+
+                // ✨ NUEVO: Guardar features para este ticket (para aprendizaje ML)
+                double features[20];
+                PrepareMLFeatures(features);
+                StoreFeaturesForTicket(ticket, features);
+
                 // Actualizar registro con información de la orden
                 if(g_metaLearning != NULL && ticket > 0)
                 {
@@ -1913,9 +1936,14 @@ void ProcessExecutingOrder()
                 
                 // Asegurar consensus_id
                 g_orderExecution.m_multiOrder.consensus_ids[orderIdx] = g_consensusResult.consensus_id;
-                
+
                 Print("✓ Orden adicional ejecutada - Ticket: ", ticket);
-                
+
+                // ✨ NUEVO: Guardar features para orden adicional (para aprendizaje ML)
+                double features[20];
+                PrepareMLFeatures(features);
+                StoreFeaturesForTicket(ticket, features);
+
                 // Registrar en MetaLearning
                 if(g_metaLearning != NULL && ticket > 0)
                 {
@@ -2156,7 +2184,10 @@ void MonitorClosedOrders()
         Print("Order Ticket: ", orderTicket);
         Print("Profit: ", DoubleToString(totalProfit, 2));
         Print("Resultado: ", isWin ? "GANADORA" : "PERDEDORA");
-        
+
+        // ✨ NUEVO: Registrar en ML para aprendizaje
+        OnTradeClosedML(orderTicket, totalProfit, isWin);
+
         // SOLUCIÓN: Buscar el registro más reciente por tiempo
         bool foundTracking = false;
         
@@ -4244,6 +4275,169 @@ void ShowInitialConfiguration()
     if(ShowPerformanceStats && g_metaLearning != NULL)
     {
         g_metaLearning.PrintAgentPerformanceReport();
+    }
+}
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: Guardar features para un ticket                       |
+//+------------------------------------------------------------------+
+void StoreFeaturesForTicket(ulong ticket, const double &features[])
+{
+    int idx = g_ticketFeaturesCount % 100;
+    g_ticketFeatures[idx].ticket = ticket;
+    ArrayCopy(g_ticketFeatures[idx].features, features, 0, 0, WHOLE_ARRAY);
+    g_ticketFeatures[idx].timestamp = TimeCurrent();
+    g_ticketFeaturesCount++;
+
+    if(ShowDebugInfo)
+        Print("✅ Features guardadas para ticket #", ticket);
+}
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: Recuperar features de un ticket                       |
+//+------------------------------------------------------------------+
+bool GetStoredFeaturesForTicket(ulong ticket, double &features[])
+{
+    int searchLimit = MathMin(100, g_ticketFeaturesCount);
+
+    for(int i = 0; i < searchLimit; i++)
+    {
+        if(g_ticketFeatures[i].ticket == ticket)
+        {
+            ArrayCopy(features, g_ticketFeatures[i].features, 0, 0, WHOLE_ARRAY);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: Callback cuando se cierra un trade (para ML)          |
+//+------------------------------------------------------------------+
+void OnTradeClosedML(ulong ticket, double profit, bool wasSuccessful)
+{
+    // 1. Recuperar features que se usaron para este trade
+    double features[20];
+    if(!GetStoredFeaturesForTicket(ticket, features))
+    {
+        Print("⚠️  No se encontraron features para ticket #", ticket);
+        return;
+    }
+
+    // 2. Registrar en ML para aprendizaje
+    if(g_metaLearning != NULL)
+    {
+        g_metaLearning.RegisterTradeForLearning(ticket, wasSuccessful, profit, features);
+    }
+
+    Print("✅ Trade #", ticket, " registrado en ML (", wasSuccessful ? "WIN" : "LOSS", ", ", DoubleToString(profit, 2), " pips)");
+}
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: Detectar Rally Fuerte                                 |
+//+------------------------------------------------------------------+
+bool DetectRallyInProgress(double &rallyStrength)
+{
+    rallyStrength = 0.0;
+
+    // 1. Verificar momentum
+    double currentMomentum = g_decisionContext.momentum;
+    if(MathAbs(currentMomentum) < 0.5) return false;  // Momentum débil
+
+    // 2. Verificar que el precio se mueve en dirección del trade
+    if(g_orderExecution == NULL || !g_orderExecution.m_multiOrder.cycleActive)
+        return false;
+
+    ENUM_TRADE_DIRECTION tradeDir = g_orderExecution.m_multiOrder.direction;
+
+    if(tradeDir == DIRECTION_BUY && currentMomentum < 0) return false;
+    if(tradeDir == DIRECTION_SELL && currentMomentum > 0) return false;
+
+    // 3. Verificar volumen aumentado
+    MqlRates rates[];
+    ArraySetAsSeries(rates, true);
+    if(CopyRates(_Symbol, PERIOD_CURRENT, 0, 10, rates) < 10) return false;
+
+    long currentVolume = rates[0].tick_volume;
+    long avgVolume = 0;
+    for(int i = 1; i < 10; i++)
+        avgVolume += rates[i].tick_volume;
+    avgVolume /= 9;
+
+    double volumeRatio = (double)currentVolume / (avgVolume > 0 ? avgVolume : 1);
+    if(volumeRatio < 1.3) return false;  // Volumen no aumentó significativamente
+
+    // 4. Verificar movimiento de precio consistente
+    int consistentBars = 0;
+    for(int i = 1; i < 5; i++)
+    {
+        if(tradeDir == DIRECTION_BUY && rates[i-1].close > rates[i].close)
+            consistentBars++;
+        else if(tradeDir == DIRECTION_SELL && rates[i-1].close < rates[i].close)
+            consistentBars++;
+    }
+
+    if(consistentBars < 3) return false;  // No hay consistencia
+
+    // 5. Calcular fuerza del rally
+    rallyStrength = (MathAbs(currentMomentum) * 0.4) +
+                    (volumeRatio * 0.3) +
+                    (consistentBars / 5.0 * 0.3);
+
+    Print("🔥 RALLY DETECTADO - Fuerza: ", DoubleToString(rallyStrength, 2));
+    return true;
+}
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: Trailing Stop Adaptativo por Rally                    |
+//+------------------------------------------------------------------+
+void UpdateAdaptiveTrailing()
+{
+    if(g_orderExecution == NULL || !g_orderExecution.m_multiOrder.cycleActive)
+        return;
+
+    double rallyStrength = 0.0;
+    bool isRally = DetectRallyInProgress(rallyStrength);
+
+    if(isRally)
+    {
+        // EN RALLY: Trailing más suelto para capturar más
+        double looserMultiplier = 1.5 + (rallyStrength * 0.5);
+
+        Print("🚀 Rally en progreso - Trailing x", DoubleToString(looserMultiplier, 2));
+
+        // NOTA: La modificación de trailing distance requiere acceso a OrderExecution
+        // Por ahora, solo ajustamos la lógica de órdenes adicionales
+
+        // Agregar órdenes adicionales con requisito reducido si es posible
+        if(g_orderExecution.m_multiOrder.orderCount < MaxOrdersPerCycle)
+        {
+            double firstOrderProfit = g_orderExecution.GetFirstOrderProfit();
+            double reducedRequirement = MinProfitForAdditional * 0.7;  // 30% menos requisito
+
+            if(firstOrderProfit > reducedRequirement)
+            {
+                Print("📈 Rally + Profit (", DoubleToString(firstOrderProfit, 1), " pips)",
+                      " → Requisito reducido para orden adicional");
+                // La lógica de orden adicional se ejecutará en el siguiente ciclo
+            }
+        }
+    }
+    else
+    {
+        // SIN RALLY: Verificar si estamos consolidando
+        if(MathAbs(g_decisionContext.momentum) < 0.2)  // Momentum débil = consolidación
+        {
+            Print("⚠️  Consolidación detectada - Trailing más apretado (proteger ganancias)");
+            // En consolidación, el trailing normal será más conservador
+        }
+    }
+
+    // Ejecutar trailing normal
+    if(g_orderExecution != NULL)
+    {
+        g_orderExecution.UpdateAllTrailingStops();
     }
 }
 
