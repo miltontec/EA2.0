@@ -40,11 +40,12 @@ AgentCycleVote g_agents[5];
 //+------------------------------------------------------------------+
 enum TRADING_STATE
 {
-    STATE_WAITING_SR_TOUCH,         
-    STATE_CHECKING_ACCUMULATION,    
-    STATE_NEURAL_NEGOTIATION,       
-    STATE_EXECUTING_ORDER,          
-    STATE_MONITORING_POSITIONS,     
+    STATE_WAITING_SR_TOUCH,
+    STATE_CHECKING_ACCUMULATION,
+    STATE_ML_PRE_FILTER,           // ✨ NUEVO: Pre-filtro ML antes de votación
+    STATE_NEURAL_NEGOTIATION,
+    STATE_EXECUTING_ORDER,
+    STATE_MONITORING_POSITIONS,
     STATE_CYCLE_COMPLETE
 };
 
@@ -786,23 +787,27 @@ void OnTick()
         case STATE_WAITING_SR_TOUCH:
             ProcessWaitingSRTouch();
             break;
-            
+
         case STATE_CHECKING_ACCUMULATION:
             ProcessCheckingAccumulation();
             break;
-            
+
+        case STATE_ML_PRE_FILTER:  // ✨ NUEVO: Pre-filtro ML
+            ProcessMLPreFilter();
+            break;
+
         case STATE_NEURAL_NEGOTIATION:
             ProcessNeuralNegotiationOptimized();
             break;
-            
+
         case STATE_EXECUTING_ORDER:
             ProcessExecutingOrder();
             break;
-            
+
         case STATE_MONITORING_POSITIONS:
             ProcessMonitoringPositions();
             break;
-            
+
         case STATE_CYCLE_COMPLETE:
             ProcessCycleComplete();
             break;
@@ -1479,12 +1484,86 @@ void ProcessCheckingAccumulation()
             g_currentCycle.accumValid = true;
             g_currentCycle.accumCenter = g_accumContext.centerPrice;
             g_currentCycle.accumRange = g_accumContext.range;
-            
+
             PrintAccumulationDetected(minBarsRequired);
-            
-            ChangeState(STATE_NEURAL_NEGOTIATION);
+
+            // ✨ NUEVO: Pasar por pre-filtro ML antes de votación
+            ChangeState(STATE_ML_PRE_FILTER);
         }
     }
+}
+
+//+------------------------------------------------------------------+
+//| ✨ NUEVO: ESTADO ML PRE-FILTER - Pre-filtro con Machine Learning |
+//+------------------------------------------------------------------+
+void ProcessMLPreFilter()
+{
+    Print("╔══════════════════════════════════════════════════════╗");
+    Print("║          ML PRE-FILTRO - Evaluación Inteligente     ║");
+    Print("╚══════════════════════════════════════════════════════╝");
+
+    if(g_metaLearning == NULL)
+    {
+        Print("⚠️  ML no disponible - pasando directo a negociación");
+        ChangeState(STATE_NEURAL_NEGOTIATION);
+        return;
+    }
+
+    // 1. Extraer features del contexto actual
+    double features[20];
+    PrepareMLFeatures(features);
+
+    // 2. Predecir probabilidad de éxito usando ML con histórico
+    double probability = g_metaLearning.PredictOutcomeEnhanced(features, Symbol());
+
+    Print("🤖 ML Predicción: ", DoubleToString(probability * 100, 1), "%");
+
+    // 3. Evaluar según probabilidad
+    if(probability < 0.35)  // Menos de 35% probabilidad
+    {
+        Print("❌ ML Pre-Filtro: RECHAZADO");
+        Print("   Razón: Probabilidad muy baja (", DoubleToString(probability * 100, 1), "%)");
+        Print("   Acción: Abortar setup y volver a esperar");
+
+        // Registrar intento fallido en memoria episódica
+        if(g_EnableEpisodicMemory && g_episodicMemory != NULL && g_currentCycle.episodeId > 0)
+        {
+            CompleteCurrentEpisode(false);
+        }
+
+        ResetToWaitingState();
+        return;
+    }
+    else if(probability < 0.50)
+    {
+        Print("⚠️  ML Pre-Filtro: ADVERTENCIA - Probabilidad baja");
+        Print("   Probabilidad: ", DoubleToString(probability * 100, 1), "%");
+        Print("   Acción: Continuar con PRECAUCIÓN - Reducir riesgo");
+
+        // Penalizar calidad del consenso para reducir lot size
+        g_currentCycle.consensusQuality = 0.7;
+    }
+    else if(probability > 0.70)
+    {
+        Print("✅ ML Pre-Filtro: EXCELENTE - Alta probabilidad");
+        Print("   Probabilidad: ", DoubleToString(probability * 100, 1), "%");
+        Print("   Acción: Continuar AGRESIVAMENTE - Aumentar riesgo");
+
+        // Bonificar calidad del consenso para aumentar lot size
+        g_currentCycle.consensusQuality = 1.3;
+    }
+    else
+    {
+        Print("✅ ML Pre-Filtro: APROBADO - Probabilidad aceptable");
+        Print("   Probabilidad: ", DoubleToString(probability * 100, 1), "%");
+        Print("   Acción: Continuar normalmente");
+
+        g_currentCycle.consensusQuality = 1.0;
+    }
+
+    // 4. Continuar a negociación neural
+    Print("→ Pasando a negociación neural...\n");
+    ChangeState(STATE_NEURAL_NEGOTIATION);
 }
 
 //+------------------------------------------------------------------+
@@ -1495,7 +1574,7 @@ void ProcessNeuralNegotiationOptimized()
     Print("╔══════════════════════════════════════════════════════╗");
     Print("║       NEGOCIACIÓN NEURONAL OPTIMIZADA v15.1          ║");
     Print("╚══════════════════════════════════════════════════════╝");
-    
+
     // Generar consensus_id
     ulong consensus_id = 0;
     if(g_metaLearning != NULL)

@@ -1310,24 +1310,100 @@ private:
         // Identificar patrones de fallo
         double avgDrawdown = 0;
         int failCount = 0;
-        
+
         int searchLimit = MathMin(historyCount, MathMin(maxHistorySize, 100));
-        
+
         for(int i = 0; i < searchLimit; i++) {
             int idx = (historyCount - i - 1) % maxHistorySize;
             if(idx < 0) idx += maxHistorySize;
-            
+
             if(!history[idx].wasSuccessful) {
                 avgDrawdown += MathAbs(history[idx].maxDrawdown);
                 failCount++;
             }
         }
-        
+
         // AUDITORÍA: Prevenir división por cero
         if(failCount > 0) {
             avgDrawdown /= failCount;
             Print("❌ Patrón de fallo: Avg Drawdown=", avgDrawdown);
         }
+    }
+
+    // === NUEVO: Guardar histórico a archivo ===
+    void SaveToFile(string symbol) {
+        string filename = "TradeHistory_" + symbol + ".dat";
+        int handle = FileOpen(filename, FILE_WRITE|FILE_BIN);
+
+        if(handle == INVALID_HANDLE)
+        {
+            Print("ERROR: No se pudo guardar historial de aprendizaje");
+            return;
+        }
+
+        // Escribir contador
+        FileWriteInteger(handle, historyCount);
+
+        // Escribir todos los trades (máximo 1000)
+        int toSave = MathMin(historyCount, maxHistorySize);
+        for(int i = 0; i < toSave; i++)
+        {
+            FileWriteDouble(handle, history[i].atr);
+            FileWriteDouble(handle, history[i].rsi);
+            FileWriteDouble(handle, history[i].momentum);
+            FileWriteInteger(handle, (int)history[i].regime);
+            FileWriteDouble(handle, history[i].srStrength);
+            FileWriteDouble(handle, history[i].accumQuality);
+            FileWriteInteger(handle, history[i].timeOfDay);
+            FileWriteInteger(handle, history[i].wasSuccessful ? 1 : 0);
+            FileWriteDouble(handle, history[i].profit);
+            FileWriteDouble(handle, history[i].maxDrawdown);
+            FileWriteInteger(handle, history[i].duration);
+        }
+
+        FileClose(handle);
+        Print("✅ Historial guardado: ", toSave, " trades → ", filename);
+    }
+
+    // === NUEVO: Cargar histórico desde archivo ===
+    bool LoadFromFile(string symbol) {
+        string filename = "TradeHistory_" + symbol + ".dat";
+
+        if(!FileIsExist(filename))
+        {
+            Print("ℹ️  Historial de aprendizaje no encontrado - empezando nuevo");
+            return false;
+        }
+
+        int handle = FileOpen(filename, FILE_READ|FILE_BIN);
+
+        if(handle == INVALID_HANDLE)
+        {
+            Print("ERROR: No se pudo cargar historial");
+            return false;
+        }
+
+        historyCount = FileReadInteger(handle);
+
+        int toLoad = MathMin(historyCount, maxHistorySize);
+        for(int i = 0; i < toLoad; i++)
+        {
+            history[i].atr = FileReadDouble(handle);
+            history[i].rsi = FileReadDouble(handle);
+            history[i].momentum = FileReadDouble(handle);
+            history[i].regime = (ENUM_MARKET_REGIME)FileReadInteger(handle);
+            history[i].srStrength = FileReadDouble(handle);
+            history[i].accumQuality = FileReadDouble(handle);
+            history[i].timeOfDay = FileReadInteger(handle);
+            history[i].wasSuccessful = (FileReadInteger(handle) == 1);
+            history[i].profit = FileReadDouble(handle);
+            history[i].maxDrawdown = FileReadDouble(handle);
+            history[i].duration = FileReadInteger(handle);
+        }
+
+        FileClose(handle);
+        Print("✅ Historial cargado: ", toLoad, " trades desde ", filename);
+        return true;
     }
 };
 
@@ -3594,7 +3670,10 @@ private:
     VoteErrorPattern m_errorPatterns[50];
     int m_errorPatternCount;
     double m_agentWinRateEMA[QUANTUM_MAX_AGENTS];  // EMA para win rates por agente
-    
+
+    // === NUEVO: Sistema de Aprendizaje con Histórico ===
+    TradeLearningSystem m_learningSystem;
+
     // Parámetros configurables para el algoritmo
     double m_minConfidenceForPenalize;
     double m_initialAdjustmentFactor;
@@ -3681,6 +3760,19 @@ public:
 
     void InitializeSymbolPattern(const string symbol) {
         m_symbol = symbol;
+
+        // === NUEVO: Inicializar sistema de aprendizaje ===
+        m_learningSystem.Initialize();
+
+        // Intentar cargar histórico si existe
+        if(m_learningSystem.LoadFromFile(symbol))
+        {
+            Print("✅ Histórico de aprendizaje cargado para ", symbol);
+        }
+        else
+        {
+            Print("📚 Iniciando nuevo histórico de aprendizaje para ", symbol);
+        }
     }
 
     void SetPrivilegeParameters(double minSenior, double minMaster, double minOracle, int minTrades) {
@@ -3700,7 +3792,14 @@ public:
     }
 
     void SaveToFiles() {
-        // Stub: in a real implementation, persist stats/weights
+        // === NUEVO: Guardar histórico de aprendizaje ===
+        if(m_symbol != "")
+        {
+            m_learningSystem.SaveToFile(m_symbol);
+            Print("✅ Histórico de aprendizaje guardado para ", m_symbol);
+        }
+
+        // TODO: Guardar también stats/weights adicionales si es necesario
     }
 
     string GetMasterAgent() {
@@ -3775,71 +3874,95 @@ public:
         return m_consensus_counter++;
     }
 
-    // CORRECCIÓN COMPLETA del PredictOutcomeEnhanced - AUDITADO
+    // CORRECCIÓN COMPLETA del PredictOutcomeEnhanced - AUDITADO CON ML REAL
     double PredictOutcomeEnhanced(double &features[], const string symbol) {
         // AUDITORÍA: Validar array de features
         if(ArraySize(features) == 0) {
             Print("WARNING: PredictOutcomeEnhanced - features vacío, usando predicción neutral");
             return 0.5;
         }
-        
+
         // CORRECCIÓN 1: Establecer un floor mínimo de predicción
         double MIN_PREDICTION_FLOOR = 0.35;  // Nunca predecir menos del 35%
         double MAX_PREDICTION_CEILING = 0.85; // Nunca predecir más del 85%
-        
+
+        // === NUEVO: USAR TRADELEARNINGSYSTEM PARA PREDICCIÓN CON HISTÓRICO ===
+        TradeContext currentContext;
+        currentContext.Initialize();
+
+        // Mapear features a TradeContext
+        int idx = 0;
+        if(ArraySize(features) > idx) currentContext.atr = features[idx++];
+        idx += 4;  // Saltear otras métricas de régimen
+        if(ArraySize(features) > idx) currentContext.srStrength = features[idx++];
+        idx += 2;  // Saltear touches y type
+        idx += 3;  // Saltear acumulación
+        if(ArraySize(features) > 11) currentContext.rsi = features[11];
+        if(ArraySize(features) > 12) currentContext.momentum = features[12];
+        if(ArraySize(features) > 19) currentContext.timeOfDay = (int)(features[19] * 24);
+
+        // Predecir con histórico de trades similares
+        double mlPrediction = m_learningSystem.PredictSuccess(currentContext);
+
         // CORRECCIÓN 2: Usar promedio ponderado con sesgo optimista inicial
         double historicalWinRate = GetOverallWinRate();
         double marketConditionScore = EvaluateMarketConditions(features);
         double recentPerformance = GetRecentPerformance(10); // Últimos 10 trades
-        
+
         // AUDITORÍA: Validar resultados de funciones
         historicalWinRate = MathMax(0.0, MathMin(1.0, historicalWinRate));
         marketConditionScore = MathMax(0.0, MathMin(1.0, marketConditionScore));
         recentPerformance = MathMax(0.0, MathMin(1.0, recentPerformance));
-        
+        mlPrediction = MathMax(0.0, MathMin(1.0, mlPrediction));
+
         // CORRECCIÓN 3: Aplicar factor de decaimiento para historial negativo viejo
         double decayFactor = CalculateHistoricalDecay();
         decayFactor = MathMax(0.0, MathMin(1.0, decayFactor));
-        
+
         historicalWinRate = historicalWinRate * decayFactor + (1.0 - decayFactor) * 0.5;
-        
+
         // CORRECCIÓN 4: Peso adaptativo basado en cantidad de datos
         double dataConfidence = MathMin(1.0, m_totalTrades / 100.0);
-        
+
+        // === NUEVO: Peso adaptativo para ML según cantidad de datos ===
+        double mlConfidence = MathMin(1.0, m_learningSystem.historyCount / 100.0);
+
         double prediction = 0.0;
-        
-        // AUDITORÍA: Sistema de predicción escalonado con validaciones
+
+        // AUDITORÍA: Sistema de predicción escalonado con ML
         if(m_totalTrades < 20) {
-            // Para pocos trades, ser moderadamente optimista
+            // Para pocos trades, confiar más en condiciones de mercado
             prediction = 0.5 + marketConditionScore * 0.2;
         } else if(m_totalTrades < 50) {
-            // Transición gradual
+            // Transición gradual incorporando ML
             double weight = m_totalTrades / 50.0;
             prediction = (0.5 + marketConditionScore * 0.2) * (1 - weight) +
-                        (historicalWinRate * 0.3 + marketConditionScore * 0.4 + recentPerformance * 0.3) * weight;
+                        (historicalWinRate * 0.2 + marketConditionScore * 0.3 +
+                         recentPerformance * 0.2 + mlPrediction * mlConfidence * 0.3) * weight;
         } else {
-            // Con suficientes datos, usar promedio ponderado completo
-            prediction = historicalWinRate * 0.3 * dataConfidence +
-                        marketConditionScore * 0.4 +
-                        recentPerformance * 0.3 +
+            // Con suficientes datos, dar mayor peso al ML
+            prediction = historicalWinRate * 0.15 * dataConfidence +
+                        marketConditionScore * 0.25 +
+                        recentPerformance * 0.20 +
+                        mlPrediction * 0.40 * mlConfidence +  // ✨ ML tiene 40% de peso
                         0.5 * (1.0 - dataConfidence); // Sesgo neutral
         }
-        
+
         // AUDITORÍA: Verificar NaN o Infinity
         if(!MathIsValidNumber(prediction)) {
             Print("ERROR: PredictOutcomeEnhanced - predicción inválida, usando 0.5");
             prediction = 0.5;
         }
-        
+
         // CORRECCIÓN 5: Aplicar límites estrictos
         prediction = MathMax(MIN_PREDICTION_FLOOR, MathMin(MAX_PREDICTION_CEILING, prediction));
-        
+
         // CORRECCIÓN 6: Boost temporal después de win (más conservador)
         if(m_lastTradeWasWin && prediction > 0.5) {
             prediction *= 1.10;  // Solo 10% boost en lugar de 15%
             prediction = MathMin(MAX_PREDICTION_CEILING, prediction);
         }
-        
+
         // AUDITORÍA: Penalización por racha de pérdidas
         int recentLosses = 0;
         for(int i = 0; i < QUANTUM_MAX_AGENTS; i++) {
@@ -3851,16 +3974,17 @@ public:
             prediction *= 0.9;  // Reducir 10% si muchos agentes en racha negativa
             Print("WARNING: Múltiples agentes en racha negativa, reduciendo predicción");
         }
-        
+
         // AUDITORÍA: Log de predicción para debugging
         if(m_totalTrades % 10 == 0) {
-            Print("📊 Predicción: ", DoubleToString(prediction, 3),
-                  " (HistWR: ", DoubleToString(historicalWinRate, 3),
-                  " Market: ", DoubleToString(marketConditionScore, 3),
-                  " Recent: ", DoubleToString(recentPerformance, 3),
-                  " Trades: ", m_totalTrades, ")");
+            Print("📊 Predicción MEJORADA: ", DoubleToString(prediction * 100, 1), "%");
+            Print("   HistWR: ", DoubleToString(historicalWinRate * 100, 1), "%",
+                  " | Market: ", DoubleToString(marketConditionScore * 100, 1), "%",
+                  " | Recent: ", DoubleToString(recentPerformance * 100, 1), "%",
+                  " | ML: ", DoubleToString(mlPrediction * 100, 1), "%",
+                  " (", m_learningSystem.historyCount, " trades en memoria)");
         }
-        
+
         return prediction;
     }
     
@@ -4198,10 +4322,49 @@ public:
         double contributors[];
         ArrayResize(contributors, 1);
         contributors[0] = 1.0;
-        
+
         LearnFromResult(success, pnl, contributors, 1, "", ticket);
     }
-    
+
+    // === NUEVO: Registrar trade completo para aprendizaje ===
+    void RegisterTradeForLearning(ulong ticket, bool wasSuccessful,
+                                  double profit, const double &features[]) {
+        // Crear contexto del trade desde features
+        TradeContext ctx;
+        ctx.Initialize();
+
+        // Mapear features (mismo orden que en PredictOutcomeEnhanced)
+        int idx = 0;
+        if(ArraySize(features) > idx) ctx.atr = features[idx++];
+        idx += 4;  // Saltear otras métricas de régimen
+        if(ArraySize(features) > idx) ctx.srStrength = features[idx++];
+        idx += 2;  // Saltear touches y type
+        idx += 3;  // Saltear acumulación
+        if(ArraySize(features) > 11) ctx.rsi = features[11];
+        if(ArraySize(features) > 12) ctx.momentum = features[12];
+        if(ArraySize(features) > 19) ctx.timeOfDay = (int)(features[19] * 24);
+
+        // Resultado del trade
+        ctx.wasSuccessful = wasSuccessful;
+        ctx.profit = profit;
+
+        // Registrar en el sistema de aprendizaje
+        m_learningSystem.RecordTrade(ctx);
+
+        Print("✅ Trade #", ticket, " registrado en ML - Total en memoria: ",
+              m_learningSystem.historyCount, " trades");
+
+        // Cada 50 trades, mostrar estadísticas
+        if(m_learningSystem.historyCount % 50 == 0)
+        {
+            Print("📚 ML Learning Update - ", m_learningSystem.historyCount, " trades aprendidos");
+
+            // Optimizar parámetros cada 50 trades
+            double bestRSI, bestMomentum, bestATR;
+            m_learningSystem.OptimizeParameters(bestRSI, bestMomentum, bestATR);
+        }
+    }
+
     // New quantum-specific methods
     QuantumDecisionProfile MakeQuantumDecision(const QuantumMarketContext &context) {
         return m_ensemble.MakeQuantumDecision(context);
