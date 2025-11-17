@@ -3725,7 +3725,7 @@ private:
     double m_recoveryRate;
 
     // === Storage for CompleteTradeRecord ===
-    static const int MAX_TRADE_RECORDS = 1000;
+    enum { MAX_TRADE_RECORDS = 1000 };  // MQL5 compatible constant
     CompleteTradeRecord m_tradeRecords[1000];  // Circular buffer
     int m_tradeRecordCount;
     int m_tradeRecordIndex;
@@ -4788,9 +4788,9 @@ double GetOverallWinRate() {
         CompleteTradeRecord* record = GetTradeRecordByTicket(ticket);
         if(record != NULL)
         {
-            record.final_profit = profit;
-            record.was_successful = isWin;
-            record.order_close_time = TimeCurrent();
+            record->final_profit = profit;
+            record->was_successful = isWin;
+            record->order_close_time = TimeCurrent();
 
             Print("✓ Trade record finalized - Ticket: ", ticket,
                   " Profit: ", DoubleToString(profit, 2),
@@ -4836,7 +4836,7 @@ double GetOverallWinRate() {
         if(!multiOrder.cycleActive || multiOrder.orderCount == 0)
             return;
 
-        double totalProfit = multiOrder.totalProfit;
+        double totalProfit = multiOrder.cycleProfit;
         bool wasSuccessful = (totalProfit > 0);
 
         // Update stats based on cycle performance
@@ -4854,9 +4854,9 @@ double GetOverallWinRate() {
         // Record consensus decision for later analysis
         Print("📝 Recording consensus decision:");
         Print("  Consensus ID: ", consensusMem.consensus_id);
-        Print("  Direction: ", consensusMem.final_direction);
+        Print("  Direction: ", consensusMem.direction);
         Print("  Strength: ", DoubleToString(consensusMem.consensus_strength, 2));
-        Print("  Agents voted: ", consensusMem.agents_voted);
+        Print("  Agent count: ", consensusMem.agent_count);
 
         // This data could be stored for pattern analysis
         // Could identify which consensus patterns lead to success
@@ -4867,7 +4867,7 @@ double GetOverallWinRate() {
         CompleteTradeRecord* record = GetTradeRecord(consensus_id);
         if(record != NULL)
         {
-            record.order_ticket = ticket;
+            record->order_ticket = ticket;
             Print("✓ Consensus order registered - ID: ", consensus_id,
                   " linked to Ticket: ", ticket);
         }
