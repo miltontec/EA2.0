@@ -48,14 +48,7 @@ enum TRADING_STATE
     STATE_CYCLE_COMPLETE
 };
 
-enum ENUM_MARKET_SESSION
-{
-    SESSION_ASIAN,
-    SESSION_LONDON,
-    SESSION_NEWYORK,
-    SESSION_OVERLAP,
-    SESSION_CLOSED
-};
+// ENUM_MARKET_SESSION is now defined in MetaLearningSystem.mqh
 
 //+------------------------------------------------------------------+
 //| ESTRUCTURAS                                                      |

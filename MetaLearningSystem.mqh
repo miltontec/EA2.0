@@ -30,26 +30,17 @@
 #define QUANTUM_ENSEMBLE_SIZE 3
 
 //+------------------------------------------------------------------+
-//| ENUM_VOTE_DIRECTION Forward Declaration                         |
-//+------------------------------------------------------------------+
-enum ENUM_VOTE_DIRECTION
-{
-    VOTE_NONE = 0,
-    VOTE_NEUTRAL = 0,
-    VOTE_BUY = 1,
-    VOTE_SELL = -1
-};
-
-//+------------------------------------------------------------------+
-//| Complete Trade Record Structure                                  |
+//| Complete Trade Record Class                                      |
 //| Stores all information about a trade from consensus to close     |
+//| NOTE: Class is used instead of struct to allow pointers in MQL5  |
 //+------------------------------------------------------------------+
-struct CompleteTradeRecord
+class CompleteTradeRecord
 {
+public:
     // Consensus Information
     ulong                   consensus_id;           // Unique ID of the consensus
     datetime                consensus_time;         // When consensus was reached
-    ENUM_VOTE_DIRECTION     consensus_direction;    // Direction agreed upon
+    int                     consensus_direction;    // Direction agreed upon (ENUM_VOTE_DIRECTION)
     double                  consensus_strength;     // Strength of consensus
     double                  total_conviction;       // Total conviction level
     string                  leading_agent;          // Agent that led the decision
@@ -97,11 +88,16 @@ struct CompleteTradeRecord
     double                  max_adverse_excursion;  // MAE metric
 
     // Constructor
+    CompleteTradeRecord()
+    {
+        Initialize();
+    }
+
     void Initialize()
     {
         consensus_id = 0;
         consensus_time = 0;
-        consensus_direction = VOTE_NEUTRAL;
+        consensus_direction = 0; // VOTE_NEUTRAL
         consensus_strength = 0.0;
         total_conviction = 0.0;
         leading_agent = "";
@@ -197,7 +193,8 @@ enum ENUM_ML_STRATEGY {
     STRAT_ADAPTIVE = 3      // Se ajusta dinámicamente
 };
 
-enum ENUM_MARKET_SESSION {
+enum ENUM_MARKET_SESSION
+{
     SESSION_ASIAN = 0,
     SESSION_LONDON = 1,
     SESSION_NEWYORK = 2,
@@ -3725,7 +3722,7 @@ private:
     double m_recoveryRate;
 
     // === Trade Record Storage ===
-    CompleteTradeRecord m_tradeRecords[100];  // Storage for trade records
+    CompleteTradeRecord* m_tradeRecords[100];  // Storage for trade record pointers
     int m_tradeRecordCount;                   // Number of stored records
 
 public:
@@ -3777,7 +3774,17 @@ public:
         // Inicializar contador de registros de trade
         m_tradeRecordCount = 0;
         for(int i = 0; i < 100; i++) {
-            m_tradeRecords[i].Initialize();
+            m_tradeRecords[i] = NULL;
+        }
+    }
+
+    ~MetaLearningSystem() {
+        // Cleanup trade records
+        for(int i = 0; i < 100; i++) {
+            if(m_tradeRecords[i] != NULL) {
+                delete m_tradeRecords[i];
+                m_tradeRecords[i] = NULL;
+            }
         }
     }
 
@@ -4744,7 +4751,7 @@ double GetOverallWinRate() {
         int existingIdx = -1;
         for(int i = 0; i < m_tradeRecordCount; i++)
         {
-            if(m_tradeRecords[i].consensus_id == record.consensus_id)
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].consensus_id == record.consensus_id)
             {
                 existingIdx = i;
                 break;
@@ -4753,25 +4760,163 @@ double GetOverallWinRate() {
 
         if(existingIdx >= 0)
         {
-            // Update existing record
-            m_tradeRecords[existingIdx] = record;
+            // Update existing record - copy all fields
+            m_tradeRecords[existingIdx].consensus_id = record.consensus_id;
+            m_tradeRecords[existingIdx].consensus_time = record.consensus_time;
+            m_tradeRecords[existingIdx].consensus_direction = record.consensus_direction;
+            m_tradeRecords[existingIdx].consensus_strength = record.consensus_strength;
+            m_tradeRecords[existingIdx].total_conviction = record.total_conviction;
+            m_tradeRecords[existingIdx].leading_agent = record.leading_agent;
+
+            for(int i = 0; i < 5; i++)
+            {
+                m_tradeRecords[existingIdx].participating_agents[i] = record.participating_agents[i];
+                m_tradeRecords[existingIdx].agent_votes[i] = record.agent_votes[i];
+                m_tradeRecords[existingIdx].agent_confidences[i] = record.agent_confidences[i];
+                m_tradeRecords[existingIdx].agent_performance_impact[i] = record.agent_performance_impact[i];
+            }
+
+            m_tradeRecords[existingIdx].veto_used = record.veto_used;
+            m_tradeRecords[existingIdx].initial_volatility = record.initial_volatility;
+            m_tradeRecords[existingIdx].initial_momentum = record.initial_momentum;
+            m_tradeRecords[existingIdx].initial_fear = record.initial_fear;
+            m_tradeRecords[existingIdx].initial_greed = record.initial_greed;
+            m_tradeRecords[existingIdx].session_type = record.session_type;
+            m_tradeRecords[existingIdx].sr_level_strength = record.sr_level_strength;
+
+            m_tradeRecords[existingIdx].order_open_time = record.order_open_time;
+            m_tradeRecords[existingIdx].order_open_price = record.order_open_price;
+            m_tradeRecords[existingIdx].order_lot_size = record.order_lot_size;
+            m_tradeRecords[existingIdx].order_sl = record.order_sl;
+            m_tradeRecords[existingIdx].order_tp = record.order_tp;
+            m_tradeRecords[existingIdx].order_position_in_cycle = record.order_position_in_cycle;
+            m_tradeRecords[existingIdx].order_ticket = record.order_ticket;
+
+            m_tradeRecords[existingIdx].order_close_time = record.order_close_time;
+            m_tradeRecords[existingIdx].order_close_price = record.order_close_price;
+            m_tradeRecords[existingIdx].order_profit = record.order_profit;
+            m_tradeRecords[existingIdx].order_profit_points = record.order_profit_points;
+            m_tradeRecords[existingIdx].order_success = record.order_success;
+            m_tradeRecords[existingIdx].order_duration_bars = record.order_duration_bars;
+            m_tradeRecords[existingIdx].max_profit_reached = record.max_profit_reached;
+            m_tradeRecords[existingIdx].max_drawdown_reached = record.max_drawdown_reached;
+
+            m_tradeRecords[existingIdx].consensus_quality_confirmed = record.consensus_quality_confirmed;
+            m_tradeRecords[existingIdx].learning_value = record.learning_value;
+            m_tradeRecords[existingIdx].max_favorable_excursion = record.max_favorable_excursion;
+            m_tradeRecords[existingIdx].max_adverse_excursion = record.max_adverse_excursion;
         }
         else
         {
             // Add new record
             if(m_tradeRecordCount < 100)
             {
-                m_tradeRecords[m_tradeRecordCount] = record;
+                m_tradeRecords[m_tradeRecordCount] = new CompleteTradeRecord();
+                m_tradeRecords[m_tradeRecordCount].consensus_id = record.consensus_id;
+                m_tradeRecords[m_tradeRecordCount].consensus_time = record.consensus_time;
+                m_tradeRecords[m_tradeRecordCount].consensus_direction = record.consensus_direction;
+                m_tradeRecords[m_tradeRecordCount].consensus_strength = record.consensus_strength;
+                m_tradeRecords[m_tradeRecordCount].total_conviction = record.total_conviction;
+                m_tradeRecords[m_tradeRecordCount].leading_agent = record.leading_agent;
+
+                for(int i = 0; i < 5; i++)
+                {
+                    m_tradeRecords[m_tradeRecordCount].participating_agents[i] = record.participating_agents[i];
+                    m_tradeRecords[m_tradeRecordCount].agent_votes[i] = record.agent_votes[i];
+                    m_tradeRecords[m_tradeRecordCount].agent_confidences[i] = record.agent_confidences[i];
+                    m_tradeRecords[m_tradeRecordCount].agent_performance_impact[i] = record.agent_performance_impact[i];
+                }
+
+                m_tradeRecords[m_tradeRecordCount].veto_used = record.veto_used;
+                m_tradeRecords[m_tradeRecordCount].initial_volatility = record.initial_volatility;
+                m_tradeRecords[m_tradeRecordCount].initial_momentum = record.initial_momentum;
+                m_tradeRecords[m_tradeRecordCount].initial_fear = record.initial_fear;
+                m_tradeRecords[m_tradeRecordCount].initial_greed = record.initial_greed;
+                m_tradeRecords[m_tradeRecordCount].session_type = record.session_type;
+                m_tradeRecords[m_tradeRecordCount].sr_level_strength = record.sr_level_strength;
+
+                m_tradeRecords[m_tradeRecordCount].order_open_time = record.order_open_time;
+                m_tradeRecords[m_tradeRecordCount].order_open_price = record.order_open_price;
+                m_tradeRecords[m_tradeRecordCount].order_lot_size = record.order_lot_size;
+                m_tradeRecords[m_tradeRecordCount].order_sl = record.order_sl;
+                m_tradeRecords[m_tradeRecordCount].order_tp = record.order_tp;
+                m_tradeRecords[m_tradeRecordCount].order_position_in_cycle = record.order_position_in_cycle;
+                m_tradeRecords[m_tradeRecordCount].order_ticket = record.order_ticket;
+
+                m_tradeRecords[m_tradeRecordCount].order_close_time = record.order_close_time;
+                m_tradeRecords[m_tradeRecordCount].order_close_price = record.order_close_price;
+                m_tradeRecords[m_tradeRecordCount].order_profit = record.order_profit;
+                m_tradeRecords[m_tradeRecordCount].order_profit_points = record.order_profit_points;
+                m_tradeRecords[m_tradeRecordCount].order_success = record.order_success;
+                m_tradeRecords[m_tradeRecordCount].order_duration_bars = record.order_duration_bars;
+                m_tradeRecords[m_tradeRecordCount].max_profit_reached = record.max_profit_reached;
+                m_tradeRecords[m_tradeRecordCount].max_drawdown_reached = record.max_drawdown_reached;
+
+                m_tradeRecords[m_tradeRecordCount].consensus_quality_confirmed = record.consensus_quality_confirmed;
+                m_tradeRecords[m_tradeRecordCount].learning_value = record.learning_value;
+                m_tradeRecords[m_tradeRecordCount].max_favorable_excursion = record.max_favorable_excursion;
+                m_tradeRecords[m_tradeRecordCount].max_adverse_excursion = record.max_adverse_excursion;
+
                 m_tradeRecordCount++;
             }
             else
             {
-                // Array is full, shift oldest out (FIFO)
+                // Array is full, remove oldest and shift
+                if(m_tradeRecords[0] != NULL)
+                {
+                    delete m_tradeRecords[0];
+                }
+
                 for(int i = 0; i < 99; i++)
                 {
                     m_tradeRecords[i] = m_tradeRecords[i + 1];
                 }
-                m_tradeRecords[99] = record;
+
+                m_tradeRecords[99] = new CompleteTradeRecord();
+                m_tradeRecords[99].consensus_id = record.consensus_id;
+                m_tradeRecords[99].consensus_time = record.consensus_time;
+                m_tradeRecords[99].consensus_direction = record.consensus_direction;
+                m_tradeRecords[99].consensus_strength = record.consensus_strength;
+                m_tradeRecords[99].total_conviction = record.total_conviction;
+                m_tradeRecords[99].leading_agent = record.leading_agent;
+
+                for(int i = 0; i < 5; i++)
+                {
+                    m_tradeRecords[99].participating_agents[i] = record.participating_agents[i];
+                    m_tradeRecords[99].agent_votes[i] = record.agent_votes[i];
+                    m_tradeRecords[99].agent_confidences[i] = record.agent_confidences[i];
+                    m_tradeRecords[99].agent_performance_impact[i] = record.agent_performance_impact[i];
+                }
+
+                m_tradeRecords[99].veto_used = record.veto_used;
+                m_tradeRecords[99].initial_volatility = record.initial_volatility;
+                m_tradeRecords[99].initial_momentum = record.initial_momentum;
+                m_tradeRecords[99].initial_fear = record.initial_fear;
+                m_tradeRecords[99].initial_greed = record.initial_greed;
+                m_tradeRecords[99].session_type = record.session_type;
+                m_tradeRecords[99].sr_level_strength = record.sr_level_strength;
+
+                m_tradeRecords[99].order_open_time = record.order_open_time;
+                m_tradeRecords[99].order_open_price = record.order_open_price;
+                m_tradeRecords[99].order_lot_size = record.order_lot_size;
+                m_tradeRecords[99].order_sl = record.order_sl;
+                m_tradeRecords[99].order_tp = record.order_tp;
+                m_tradeRecords[99].order_position_in_cycle = record.order_position_in_cycle;
+                m_tradeRecords[99].order_ticket = record.order_ticket;
+
+                m_tradeRecords[99].order_close_time = record.order_close_time;
+                m_tradeRecords[99].order_close_price = record.order_close_price;
+                m_tradeRecords[99].order_profit = record.order_profit;
+                m_tradeRecords[99].order_profit_points = record.order_profit_points;
+                m_tradeRecords[99].order_success = record.order_success;
+                m_tradeRecords[99].order_duration_bars = record.order_duration_bars;
+                m_tradeRecords[99].max_profit_reached = record.max_profit_reached;
+                m_tradeRecords[99].max_drawdown_reached = record.max_drawdown_reached;
+
+                m_tradeRecords[99].consensus_quality_confirmed = record.consensus_quality_confirmed;
+                m_tradeRecords[99].learning_value = record.learning_value;
+                m_tradeRecords[99].max_favorable_excursion = record.max_favorable_excursion;
+                m_tradeRecords[99].max_adverse_excursion = record.max_adverse_excursion;
             }
         }
     }
@@ -4782,7 +4927,7 @@ double GetOverallWinRate() {
         // Find the record with matching consensus_id
         for(int i = 0; i < m_tradeRecordCount; i++)
         {
-            if(m_tradeRecords[i].consensus_id == consensus_id)
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].consensus_id == consensus_id)
             {
                 m_tradeRecords[i].order_ticket = ticket;
                 return;
@@ -4795,9 +4940,9 @@ double GetOverallWinRate() {
     {
         for(int i = 0; i < m_tradeRecordCount; i++)
         {
-            if(m_tradeRecords[i].consensus_id == consensus_id)
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].consensus_id == consensus_id)
             {
-                return &m_tradeRecords[i];
+                return m_tradeRecords[i];
             }
         }
         return NULL;
@@ -4808,9 +4953,9 @@ double GetOverallWinRate() {
     {
         for(int i = 0; i < m_tradeRecordCount; i++)
         {
-            if(m_tradeRecords[i].order_ticket == ticket)
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].order_ticket == ticket)
             {
-                return &m_tradeRecords[i];
+                return m_tradeRecords[i];
             }
         }
         return NULL;
