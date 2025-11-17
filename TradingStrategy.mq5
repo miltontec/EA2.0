@@ -1507,7 +1507,7 @@ void ProcessNeuralNegotiationOptimized()
     }
     
     // Resetear y recopilar votos
-    g_votingStats.Reset();
+    g_votingStats.ResetVotes();
     g_votingStats.SetCurrentConsensusID(consensus_id);
     
     int votesCollected = CollectAllVotesWithTracking(consensus_id);
@@ -1610,7 +1610,7 @@ void ProcessNeuralNegotiationBasic()
     // 2. Resetear sistema de votación
     if(g_votingStats != NULL)
     {
-        g_votingStats.Reset();
+        g_votingStats.ResetVotes();
         g_votingStats.SetCurrentConsensusID(consensus_id);
     }
     
@@ -3808,8 +3808,8 @@ void ResetCycle()
     g_historicalSuccessRate = 0.5;
     
     // Desbloquear dirección
-    g_votingStats.SetLockedDirection(VOTE_NONE);
-    
+    g_votingStats.SetDirectionLock(VOTE_NONE);
+
     Print("═══ CICLO RESETEADO - Esperando nuevo toque S/R ═══");
 }
 
@@ -3990,9 +3990,9 @@ void UpdateCycleStatus()
 {
     if(g_orderExecution.m_multiOrder.cycleActive && g_orderExecution.m_multiOrder.orderCount > 0)
     {
-        g_currentCycle.activeDirection = (g_orderExecution.m_multiOrder.direction == DIRECTION_BUY) ? 
+        g_currentCycle.activeDirection = (g_orderExecution.m_multiOrder.direction == DIRECTION_BUY) ?
                                        VOTE_BUY : VOTE_SELL;
-        g_votingStats.SetLockedDirection(g_currentCycle.activeDirection);
+        g_votingStats.SetDirectionLock(g_currentCycle.activeDirection);
         g_currentCycle.ordersExecuted = g_orderExecution.m_multiOrder.orderCount;
         
         if(g_orderExecution.m_multiOrder.tickets[0] > 0)
@@ -4006,7 +4006,7 @@ void UpdateCycleStatus()
     else
     {
         g_currentCycle.activeDirection = VOTE_NONE;
-        g_votingStats.SetLockedDirection(VOTE_NONE);
+        g_votingStats.SetDirectionLock(VOTE_NONE);
     }
     
     // Actualizar régimen actual
