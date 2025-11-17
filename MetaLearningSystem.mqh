@@ -1139,10 +1139,11 @@ private:
 class TradeLearningSystem {
 private:
     TradeContext history[1000];
-    int historyCount;
     int maxHistorySize;  // AUDITORÍA: Agregar límite configurable
-    
+
 public:
+    int historyCount;  // ✨ PÚBLICO para acceso desde MetaLearningSystem
+
     void Initialize() {
         historyCount = 0;
         maxHistorySize = 1000;  // AUDITORÍA: Establecer límite explícito
@@ -1249,85 +1250,9 @@ public:
         bestMomentum = MathMax(-100.0, MathMin(100.0, bestMomentum));
         bestATR = MathMax(0.0, bestATR);
         
-        Print("📊 Optimizando - Mejor RSI: ", bestRSI, 
+        Print("📊 Optimizando - Mejor RSI: ", bestRSI,
               " Mejor Momentum: ", bestMomentum,
               " Mejor ATR: ", bestATR);
-    }
-    
-private:
-    double CalculateSimilarity(const TradeContext &a, const TradeContext &b) {
-    double sim = 0;
-    
-    // AUDITORÍA: Validar divisiones por cero y rangos
-    double rsiDiff = (a.rsi > 0 && b.rsi > 0) ? 
-                    (1.0 - MathAbs(a.rsi - b.rsi) / 100.0) : 0.0;
-    
-    double momentumDiff = 1.0 - MathMin(1.0, MathAbs(a.momentum - b.momentum) / 100.0);
-    
-    double regimeSim = (a.regime == b.regime) ? 1.0 : 0.0;
-    
-    double srDiff = 1.0 - MathMin(1.0, MathAbs(a.srStrength - b.srStrength));
-    
-    double timeDiff = 1.0 - MathMin(1.0, MathAbs(a.timeOfDay - b.timeOfDay) / 24.0);
-    
-    // Pesos para cada factor (completo y normalizado)
-    sim = rsiDiff * 0.2 + momentumDiff * 0.2 + regimeSim * 0.2 + 
-          srDiff * 0.2 + timeDiff * 0.2;
-    
-    // AUDITORÍA: Asegurar resultado en [0,1] con clamping
-    sim = MathMax(0.0, MathMin(1.0, sim));
-    
-    return sim;
-}
-    
-    void UpdateSuccessPatterns() {
-        // Identificar patrones de éxito
-        double avgRSI = 0, avgMomentum = 0;
-        int successCount = 0;
-        
-        int searchLimit = MathMin(historyCount, MathMin(maxHistorySize, 100));
-        
-        for(int i = 0; i < searchLimit; i++) {
-            int idx = (historyCount - i - 1) % maxHistorySize;
-            if(idx < 0) idx += maxHistorySize;
-            
-            if(history[idx].wasSuccessful) {
-                avgRSI += history[idx].rsi;
-                avgMomentum += history[idx].momentum;
-                successCount++;
-            }
-        }
-        
-        // AUDITORÍA: Prevenir división por cero
-        if(successCount > 0) {
-            avgRSI /= successCount;
-            avgMomentum /= successCount;
-            Print("✅ Patrón de éxito: RSI=", avgRSI, " Momentum=", avgMomentum);
-        }
-    }
-    
-    void UpdateFailurePatterns() {
-        // Identificar patrones de fallo
-        double avgDrawdown = 0;
-        int failCount = 0;
-
-        int searchLimit = MathMin(historyCount, MathMin(maxHistorySize, 100));
-
-        for(int i = 0; i < searchLimit; i++) {
-            int idx = (historyCount - i - 1) % maxHistorySize;
-            if(idx < 0) idx += maxHistorySize;
-
-            if(!history[idx].wasSuccessful) {
-                avgDrawdown += MathAbs(history[idx].maxDrawdown);
-                failCount++;
-            }
-        }
-
-        // AUDITORÍA: Prevenir división por cero
-        if(failCount > 0) {
-            avgDrawdown /= failCount;
-            Print("❌ Patrón de fallo: Avg Drawdown=", avgDrawdown);
-        }
     }
 
     // === NUEVO: Guardar histórico a archivo ===
@@ -1404,6 +1329,82 @@ private:
         FileClose(handle);
         Print("✅ Historial cargado: ", toLoad, " trades desde ", filename);
         return true;
+    }
+
+private:
+    double CalculateSimilarity(const TradeContext &a, const TradeContext &b) {
+    double sim = 0;
+    
+    // AUDITORÍA: Validar divisiones por cero y rangos
+    double rsiDiff = (a.rsi > 0 && b.rsi > 0) ? 
+                    (1.0 - MathAbs(a.rsi - b.rsi) / 100.0) : 0.0;
+    
+    double momentumDiff = 1.0 - MathMin(1.0, MathAbs(a.momentum - b.momentum) / 100.0);
+    
+    double regimeSim = (a.regime == b.regime) ? 1.0 : 0.0;
+    
+    double srDiff = 1.0 - MathMin(1.0, MathAbs(a.srStrength - b.srStrength));
+    
+    double timeDiff = 1.0 - MathMin(1.0, MathAbs(a.timeOfDay - b.timeOfDay) / 24.0);
+    
+    // Pesos para cada factor (completo y normalizado)
+    sim = rsiDiff * 0.2 + momentumDiff * 0.2 + regimeSim * 0.2 + 
+          srDiff * 0.2 + timeDiff * 0.2;
+    
+    // AUDITORÍA: Asegurar resultado en [0,1] con clamping
+    sim = MathMax(0.0, MathMin(1.0, sim));
+    
+    return sim;
+}
+    
+    void UpdateSuccessPatterns() {
+        // Identificar patrones de éxito
+        double avgRSI = 0, avgMomentum = 0;
+        int successCount = 0;
+        
+        int searchLimit = MathMin(historyCount, MathMin(maxHistorySize, 100));
+        
+        for(int i = 0; i < searchLimit; i++) {
+            int idx = (historyCount - i - 1) % maxHistorySize;
+            if(idx < 0) idx += maxHistorySize;
+            
+            if(history[idx].wasSuccessful) {
+                avgRSI += history[idx].rsi;
+                avgMomentum += history[idx].momentum;
+                successCount++;
+            }
+        }
+        
+        // AUDITORÍA: Prevenir división por cero
+        if(successCount > 0) {
+            avgRSI /= successCount;
+            avgMomentum /= successCount;
+            Print("✅ Patrón de éxito: RSI=", avgRSI, " Momentum=", avgMomentum);
+        }
+    }
+    
+    void UpdateFailurePatterns() {
+        // Identificar patrones de fallo
+        double avgDrawdown = 0;
+        int failCount = 0;
+
+        int searchLimit = MathMin(historyCount, MathMin(maxHistorySize, 100));
+
+        for(int i = 0; i < searchLimit; i++) {
+            int idx = (historyCount - i - 1) % maxHistorySize;
+            if(idx < 0) idx += maxHistorySize;
+
+            if(!history[idx].wasSuccessful) {
+                avgDrawdown += MathAbs(history[idx].maxDrawdown);
+                failCount++;
+            }
+        }
+
+        // AUDITORÍA: Prevenir división por cero
+        if(failCount > 0) {
+            avgDrawdown /= failCount;
+            Print("❌ Patrón de fallo: Avg Drawdown=", avgDrawdown);
+        }
     }
 };
 
