@@ -533,20 +533,16 @@ void OnDeinit(const int reason)
     
     // 4. Mostrar resumen de aprendizaje usando métodos públicos
     Print("\n═══ RESUMEN DE APRENDIZAJE ═══");
-    
+
     if(g_metaLearning != NULL)
     {
-        // Usar métodos públicos disponibles
-        Print("ML - Tasa de consenso exitoso: ", 
-              DoubleToString(g_metaLearning.GetConsensusSuccessRate() * 100, 1), "%");
-        
         // Mostrar estadísticas de agentes
         Print("ML - Estadísticas finales de agentes:");
         for(int i = 0; i < 5; i++)
         {
-            double winRate = g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i);
-            string privilege = g_metaLearning.GetAgentPrivilegeLevel((ENUM_COMPONENT_TYPE)i);
-            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+            double winRate = g_metaLearning.GetAgentWinRate(i);
+            string privilege = g_metaLearning.GetAgentPrivilegeLevel(i);
+            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i),
                   ": WR ", DoubleToString(winRate * 100, 1), "% - ", privilege);
         }
         
