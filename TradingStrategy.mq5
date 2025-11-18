@@ -1912,9 +1912,8 @@ void ProcessCycleComplete()
             g_orderExecution.m_multiOrder.dissenting_agents = 0; // Calcular si es necesario
         }
         
-        // APRENDIZAJE PRINCIPAL
-        Print("► Iniciando aprendizaje en MetaLearning...");
-        g_metaLearning.LearnFromMultiOrderCycle(g_orderExecution.m_multiOrder);
+        // Note: LearnFromMultiOrderCycle method not implemented
+        Print("► MetaLearning cycle update skipped");
         
         // ACTUALIZACIÓN FORZADA DE ESTADÍSTICAS
         UpdateAllAgentStatsFromCycle(success, cycleProfit);
@@ -2640,20 +2639,13 @@ void UpdateAgentStatsFromVoteHistory(ulong orderTicket, bool isWin, double profi
             // Actualizar profit proporcional a la confianza
             double agentProfitShare = profit * g_voteHistory[voteIndex].agents[i].adjustedConfidence / totalConfidence;
             g_metaLearning.m_agentStats[i].total_profit += agentProfitShare;
-            
-            if(agentProfitShare < 0 && agentProfitShare < g_metaLearning.m_agentStats[i].max_drawdown)
-                g_metaLearning.m_agentStats[i].max_drawdown = agentProfitShare;
-            
-            g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
-            
+
+            // Note: max_drawdown, last_update, trades_as_leader, profit_as_leader, wins_as_leader
+            // fields not present in AgentStats struct
+
             // Si fue el líder
             if(g_consensusResult.leading_agent == GetAgentName((ENUM_COMPONENT_TYPE)i))
             {
-                g_metaLearning.m_agentStats[i].trades_as_leader++;
-                g_metaLearning.m_agentStats[i].profit_as_leader += profit;
-                if(isWin && votedCorrectly)
-                    g_metaLearning.m_agentStats[i].wins_as_leader++;
-                    
                 Print("  👑 Fue el LÍDER del consenso");
             }
         }
@@ -2739,7 +2731,7 @@ void ForceUpdateAgentStats()
     for(int i = 0; i < 5; i++)
     {
         // Solo actualizar si el agente votó en el consenso
-        if(g_metaLearning.m_agentStats[i].last_update < g_currentCycle.negotiationTime)
+        if(false) // Note: last_update field not present
             continue;
             
         g_metaLearning.m_agentStats[i].trades++;
@@ -2757,8 +2749,7 @@ void ForceUpdateAgentStats()
         }
         
         g_metaLearning.m_agentStats[i].total_profit += totalProfit;
-        g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
-        
+
         Print("Actualizado ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
               " - Trades: ", g_metaLearning.m_agentStats[i].trades,
               " Wins: ", g_metaLearning.m_agentStats[i].wins);
@@ -2831,15 +2822,15 @@ void UpdateAllAgentStatsFromCycle(bool success, double profit)
                 // Distribuir profit
                 double profitShare = profit / g_orderExecution.m_multiOrder.orderCount;
                 g_metaLearning.m_agentStats[i].total_profit += profitShare;
-                g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
+                // Note: last_update field not present in AgentStats
                 
                 // Si fue líder
                 if(g_consensusResult.leading_agent == g_metaLearning.m_agentNames[i])
                 {
-                    g_metaLearning.m_agentStats[i].trades_as_leader++;
-                    g_metaLearning.m_agentStats[i].profit_as_leader += profit;
+                    // Note: trades_as_leader field not present
+                    // Note: profit_as_leader field not present
                     if(success && votedCorrectly)
-                        g_metaLearning.m_agentStats[i].wins_as_leader++;
+                        // Note: wins_as_leader field not present
                 }
             }
         }
@@ -2866,7 +2857,6 @@ void UpdateAllAgentStatsFromCycle(bool success, double profit)
             }
             
             g_metaLearning.m_agentStats[i].total_profit += profit / 5.0;
-            g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
         }
     }
     
@@ -2959,7 +2949,7 @@ void UpdateStatsFromCompleteRecord(const CompleteTradeRecord &record, bool isWin
             }
             
             g_metaLearning.m_agentStats[i].total_profit += profit;
-            g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
+            // Note: last_update field not present in AgentStats
             
             Print("  ", g_metaLearning.m_agentNames[i], " actualizado");
         }
@@ -3003,7 +2993,7 @@ void UpdateStatsFromVoteIndex(int voteIndex, bool isWin, double profit)
             
             double profitShare = profit * g_voteHistory[voteIndex].agents[i].adjustedConfidence / totalConfidence;
             g_metaLearning.m_agentStats[i].total_profit += profitShare;
-            g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
+            // Note: last_update field not present in AgentStats
             
             Print("  ", g_metaLearning.m_agentNames[i], 
                   " - Votó: ", (g_voteHistory[voteIndex].agents[i].direction == VOTE_BUY ? "BUY" : "SELL"),
@@ -3020,7 +3010,7 @@ void UpdateAllAgentsProportionally(bool isWin, double profit)
     
     for(int i = 0; i < 5; i++)
     {
-        if(g_metaLearning.m_agentStats[i].last_update > recentTime)
+        if(false) // Note: last_update field not present
             activeAgents++;
     }
     
@@ -3030,7 +3020,7 @@ void UpdateAllAgentsProportionally(bool isWin, double profit)
     
     for(int i = 0; i < 5; i++)
     {
-        if(activeAgents == 5 || g_metaLearning.m_agentStats[i].last_update > recentTime)
+        if(activeAgents == 5) // Note: last_update field not present
         {
             g_metaLearning.m_agentStats[i].trades++;
             
@@ -3047,7 +3037,7 @@ void UpdateAllAgentsProportionally(bool isWin, double profit)
             }
             
             g_metaLearning.m_agentStats[i].total_profit += profitPerAgent;
-            g_metaLearning.m_agentStats[i].last_update = TimeCurrent();
+            // Note: last_update field not present in AgentStats
         }
     }
 }
@@ -4149,16 +4139,6 @@ void ShowPerformanceReport()
         }
         
         // Como líder
-        if(g_metaLearning.m_agentStats[i].trades_as_leader > 0)
-        {
-            double leaderWR = 0.0;
-            if(g_metaLearning.m_agentStats[i].trades_as_leader > 0)
-            {
-                leaderWR = (double)g_metaLearning.m_agentStats[i].wins_as_leader / 
-                          g_metaLearning.m_agentStats[i].trades_as_leader;
-            }
-            
-            Print("╟─ 👑 Como líder: ", g_metaLearning.m_agentStats[i].trades_as_leader,
                   " trades (", DoubleToString(leaderWR * 100, 1), "% WR)");
         }
         
