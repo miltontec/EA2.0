@@ -116,16 +116,26 @@ struct CompleteTradeRecord
     double order_lot_size;
     double order_sl;
     double order_tp;
+    int order_position_in_cycle;
 
     datetime order_close_time;
     double order_close_price;
+    double order_profit;
     double order_profit_points;
     double order_profit_currency;
+    bool order_success;
+    int order_duration_bars;
+    double max_profit_reached;
+    double max_drawdown_reached;
 
     double max_favorable_excursion;
     double max_adverse_excursion;
     int bars_duration;
     bool was_successful;
+
+    double agent_performance_impact[5];
+    bool consensus_quality_confirmed;
+    double learning_value;
 };
 
 

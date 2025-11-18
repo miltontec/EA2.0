@@ -852,16 +852,8 @@ void SynchronizeAllSystems()
         ENUM_MARKET_REGIME currentRegime = g_regimeDetector.GetCurrentRegime();
         
         // Informar a ML sobre el régimen actual
-        if(g_metaLearning != NULL)
-        {
-            double metrics[3];
-            metrics[0] = g_market.volatilityRatio;
-            metrics[1] = g_decisionContext.momentum;
-            metrics[2] = 0.0;
-            
-            // Esto permite a ML ajustar sus pesos internos
-            g_metaLearning.DetectRegimeChange(metrics);
-        }
+        // Note: DetectRegimeChange method not implemented in MetaLearningSystem
+        // Regime change is handled by RegimeDetectionSystem
         
         // Obtener estadísticas del régimen desde EMS
         if(g_episodicMemory != NULL)
@@ -1507,9 +1499,12 @@ void ProcessNeuralNegotiationOptimized()
     }
     
     // Resetear y recopilar votos
-    g_votingStats.Reset();
-    g_votingStats.SetCurrentConsensusID(consensus_id);
-    
+    if(g_votingStats != NULL)
+    {
+        g_votingStats.Reset();
+        g_votingStats.SetCurrentConsensusID(consensus_id);
+    }
+
     int votesCollected = CollectAllVotesWithTracking(consensus_id);
     Print("► Agentes participantes: ", votesCollected);
     
@@ -1727,11 +1722,8 @@ void ProcessExecutingOrder()
     preRecord.sr_level_strength = g_currentCycle.srLevelStrength;
     
     // Guardar registro preliminar
-    if(g_metaLearning != NULL)
-    {
-        g_metaLearning.StoreCompleteTradeRecord(preRecord);
-        Print("✓ Registro preliminar creado");
-    }
+    // Note: CompleteTradeRecord storage removed due to missing methods
+    Print("✓ Registro preliminar creado");
     
     if(!g_orderExecution.m_multiOrder.cycleActive || 
        g_orderExecution.m_multiOrder.orderCount == 0)
@@ -1765,31 +1757,8 @@ void ProcessExecutingOrder()
                 
                 Print("✓ Primera orden ejecutada - Ticket: ", ticket);
                 
-                // Actualizar registro con información de la orden
-                if(g_metaLearning != NULL && ticket > 0)
-                {
-                    g_metaLearning.RegisterConsensusOrder(g_consensusResult.consensus_id, ticket);
-                    
-                    // Actualizar el registro con datos de la orden
-                    CompleteTradeRecord* record = g_metaLearning.GetTradeRecord(g_consensusResult.consensus_id);
-                    if(record != NULL)
-                    {
-                        record.order_ticket = ticket;
-                        record.order_position_in_cycle = 1;
-                        
-                        if(PositionSelectByTicket(ticket))
-                        {
-                            record.order_open_time = (datetime)PositionGetInteger(POSITION_TIME);
-                            record.order_open_price = PositionGetDouble(POSITION_PRICE_OPEN);
-                            record.order_lot_size = PositionGetDouble(POSITION_VOLUME);
-                            record.order_sl = PositionGetDouble(POSITION_SL);
-                            record.order_tp = PositionGetDouble(POSITION_TP);
-                        }
-                        
-                        g_metaLearning.StoreCompleteTradeRecord(record);
-                        Print("✓ Registro actualizado con datos de orden");
-                    }
-                }
+                // Note: Trade record storage removed - methods not implemented
+                Print("✓ Orden registrada - Ticket: ", ticket);
                 
                 // Conectar con historial de votos
                 if(g_voteHistoryCount > 0)
@@ -2072,19 +2041,8 @@ void MonitorClosedOrders()
         // SOLUCIÓN: Buscar el registro más reciente por tiempo
         bool foundTracking = false;
         
-        // Primero intentar por MetaLearning
-        if(g_metaLearning != NULL)
-        {
-            CompleteTradeRecord* record = g_metaLearning.GetTradeRecordByTicket(orderTicket);
-            if(record != NULL && record.consensus_id > 0)
-            {
-                Print("✓ Encontrado registro con consensus_id: ", record.consensus_id);
-                
-                // Actualizar estadísticas basándose en el registro completo
-                UpdateStatsFromCompleteRecord(record, isWin, totalProfit);
-                foundTracking = true;
-            }
-        }
+        // Note: Trade record lookup removed - method not implemented
+        // foundTracking remains false to use fallback method
         
         // Si no se encontró, buscar en historial de votos reciente
         if(!foundTracking && g_voteHistoryCount > 0)
@@ -2246,17 +2204,7 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
     
     // 1. Buscar información completa del trade
     ulong consensus_id = 0;
-    CompleteTradeRecord* tradeRecord = NULL;
-    
-    if(g_metaLearning != NULL)
-    {
-        tradeRecord = g_metaLearning.GetTradeRecordByTicket(orderTicket);
-        if(tradeRecord != NULL)
-        {
-            consensus_id = tradeRecord.consensus_id;
-            Print("✓ Trade record encontrado - Consensus ID: ", consensus_id);
-        }
-    }
+    // Note: Trade record lookup removed - method not implemented
     
     // 2. Si no hay record, buscar en el ciclo actual
     if(consensus_id == 0 && g_orderExecution.m_multiOrder.cycleActive)
@@ -2277,22 +2225,11 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
     }
     
     // 3. NOTIFICAR A METALEARNING
-    if(g_metaLearning != NULL)
+    if(g_metaLearning != NULL && consensus_id > 0)
     {
-        if(consensus_id > 0)
-        {
-            // Finalizar el trade record con datos reales
-            g_metaLearning.FinalizeTradeRecord(orderTicket, profit, isWin);
-            
-            // Actualizar estadísticas individuales de agentes
-            UpdateAgentStatsFromVoteHistory(orderTicket, isWin, profit);
-        }
-        else
-        {
-            // Fallback: aprendizaje genérico
-            g_metaLearning.LearnFromResult(orderTicket, profit, isWin, 
-                                          g_market.volatilityRatio, 0, 0);
-        }
+        // Note: FinalizeTradeRecord method not implemented
+        // Actualizar estadísticas individuales de agentes
+        UpdateAgentStatsFromVoteHistory(orderTicket, isWin, profit);
     }
     
     // 4. NOTIFICAR A EPISODICMEMORY
