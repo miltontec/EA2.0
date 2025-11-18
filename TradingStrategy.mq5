@@ -150,12 +150,12 @@ struct TradeResult
 //| PARÁMETROS DE ENTRADA                                           |
 //+------------------------------------------------------------------+
 input group "=== CONFIGURACIÓN S/R v4 ==="
-input bool UseM30_SR = true;                    
-input bool UseH1_SR = true;                     
-input bool UseH4_SR = true;                     
-input bool UseD1_SR = true;                     
+input bool UseM30_SR = true;
+input bool UseH1_SR = true;
+input bool UseH4_SR = true;
+input bool UseD1_SR = true;
 input double MinMovementATR = 2.0;
-input int ConfirmationBars = 50;
+input int ConfirmationBars = 10;               // Reducido de 50 a 10 para confirmación más rápida
 
 input group "=== CONFIGURACIÓN ACUMULACIÓN ==="
 input int MinAccumulationBars = 2;              // Reducido de 7 a 2 para permitir trades

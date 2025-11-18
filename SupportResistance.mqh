@@ -1022,7 +1022,8 @@ double minDistance = DBL_MAX;
     
     // Buscar el mejor nivel tocado
     for(int i = 0; i < MAX_SR_LEVELS; i++) {
-        if(!m_levels[i].active || m_levels[i].state < SR_STATE_CONFIRMED) continue;
+        // Permitir toques en niveles INITIAL, CONFIRMED o VALIDATED (era solo CONFIRMED+)
+        if(!m_levels[i].active || m_levels[i].state < SR_STATE_INITIAL) continue;
         
         double distance = MathAbs(currentPrice - m_levels[i].price);
         
