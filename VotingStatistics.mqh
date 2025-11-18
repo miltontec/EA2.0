@@ -31,7 +31,6 @@ enum ENUM_COMPONENT_TYPE
 //+------------------------------------------------------------------+
 //| Estructura para emoción del mercado                             |
 //+------------------------------------------------------------------+
-#include <MetaLearningSystem.mqh>
 struct MarketEmotion
 {
     double fear;        // Nivel de miedo (0-1)

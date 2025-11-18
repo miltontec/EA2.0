@@ -4120,9 +4120,8 @@ void PrintNegotiationContextOptimized(double historicalSuccess, double predictio
         Print("► Performance contextual de agentes:");
         for(int i = 0; i < 5; i++)
         {
-            double perf = g_metaLearning.GetAgentContextualPerformance(
-                (ENUM_COMPONENT_TYPE)i, g_decisionContext);
-            
+            double perf = g_metaLearning.GetAgentContextualPerformance(i, g_decisionContext.volatility);
+
             if(perf > 0.65 || perf < 0.35)
             {
                 Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), ": ",
@@ -4265,12 +4264,11 @@ void ShowPerformanceReport()
         // Performance contextual
         if(g_EnableRegimeDetection && g_regimeDetector != NULL)
         {
-            double regimePerf = g_metaLearning.GetAgentContextualPerformance(
-                component, g_decisionContext);
-            
+            double regimePerf = g_metaLearning.GetAgentContextualPerformance(component, g_decisionContext.volatility);
+
             if(regimePerf != winRate) // Si difiere del general
             {
-                Print("╟─ 📊 En régimen actual: ", 
+                Print("╟─ 📊 En régimen actual: ",
                       DoubleToString(regimePerf * 100, 1), "%");
             }
         }

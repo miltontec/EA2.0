@@ -4605,6 +4605,37 @@ double GetOverallWinRate() {
     // ====== Fin wrappers adicionales ======
 
     void AdjustAgentConviction(const int agentId, const double baseConviction) { /* opcional: learning rule */ }
+
+    // Get contextual performance of an agent based on decision context
+    // Note: component is passed as int to avoid forward declaration issues
+    double GetAgentContextualPerformance(int component, double context_volatility = 0.0)
+    {
+        if(component < 0 || component >= QUANTUM_MAX_AGENTS)
+            return 0.5;
+
+        // Return the agent's win rate as contextual performance
+        // In a more advanced implementation, this could filter by regime, session, volatility, etc.
+        return GetAgentWinRate(component);
+    }
+
+    // Get consensus success rate
+    double GetConsensusSuccessRate()
+    {
+        // Calculate overall success rate across all agents
+        int totalTrades = 0;
+        int totalWins = 0;
+
+        for(int i = 0; i < QUANTUM_MAX_AGENTS; i++)
+        {
+            totalTrades += m_agentStats[i].trades;
+            totalWins += m_agentStats[i].wins;
+        }
+
+        if(totalTrades == 0)
+            return 0.5;
+
+        return (double)totalWins / (double)totalTrades;
+    }
     };
 
 #endif // META_LEARNING_QUANTUM_MQH
