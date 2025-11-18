@@ -158,10 +158,10 @@ input double MinMovementATR = 2.0;
 input int ConfirmationBars = 50;
 
 input group "=== CONFIGURACIÓN ACUMULACIÓN ==="
-input int MinAccumulationBars = 7;              
-input int MaxAccumulationBars = 20;             
-input double AccumulationRangeATR = 1.2;        
-input int AccumulationTimeout = 30;             
+input int MinAccumulationBars = 2;              // Reducido de 7 a 2 para permitir trades
+input int MaxAccumulationBars = 20;
+input double AccumulationRangeATR = 2.0;        // Aumentado de 1.2 a 2.0 para mayor flexibilidad
+input int AccumulationTimeout = 50;             // Aumentado de 30 a 50 para más tiempo             
 
 input group "=== NEURAL CONSENSUS NETWORK ==="
 input double MinConsensusStrength = 0.2;        
