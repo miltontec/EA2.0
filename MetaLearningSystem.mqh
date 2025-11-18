@@ -30,6 +30,129 @@
 #define QUANTUM_ENSEMBLE_SIZE 3
 
 //+------------------------------------------------------------------+
+//| ENUM_VOTE_DIRECTION - Must be defined here for all files        |
+//+------------------------------------------------------------------+
+enum ENUM_VOTE_DIRECTION
+{
+    VOTE_NONE = 0,
+    VOTE_BUY = 1,
+    VOTE_SELL = -1
+};
+
+//+------------------------------------------------------------------+
+//| Complete Trade Record Class                                      |
+//| Stores all information about a trade from consensus to close     |
+//| NOTE: Class is used instead of struct to allow pointers in MQL5  |
+//+------------------------------------------------------------------+
+class CompleteTradeRecord
+{
+public:
+    // Consensus Information
+    ulong                   consensus_id;           // Unique ID of the consensus
+    datetime                consensus_time;         // When consensus was reached
+    int                     consensus_direction;    // Direction agreed upon (ENUM_VOTE_DIRECTION)
+    double                  consensus_strength;     // Strength of consensus
+    double                  total_conviction;       // Total conviction level
+    string                  leading_agent;          // Agent that led the decision
+
+    // Participating Agents
+    string                  participating_agents[5]; // Names of agents
+    double                  agent_votes[5];         // Individual votes
+    double                  agent_confidences[5];   // Individual confidences
+
+    // Decision Context
+    bool                    veto_used;              // Was veto exercised
+    double                  initial_volatility;     // Market volatility at entry
+    double                  initial_momentum;       // Market momentum
+    double                  initial_fear;           // Fear level
+    double                  initial_greed;          // Greed level
+    int                     session_type;           // Trading session
+    double                  sr_level_strength;      // S/R level strength
+
+    // Order Entry Information
+    datetime                order_open_time;        // When order was opened
+    double                  order_open_price;       // Opening price
+    double                  order_lot_size;         // Position size
+    double                  order_sl;               // Stop Loss
+    double                  order_tp;               // Take Profit
+    int                     order_position_in_cycle;// Position number in cycle
+    ulong                   order_ticket;           // Order ticket number
+
+    // Order Exit Information
+    datetime                order_close_time;       // When order closed
+    double                  order_close_price;      // Closing price
+    double                  order_profit;           // Profit in account currency
+    double                  order_profit_points;    // Profit in points
+    bool                    order_success;          // Was trade successful
+    int                     order_duration_bars;    // Duration in bars
+    double                  max_profit_reached;     // Peak profit during trade
+    double                  max_drawdown_reached;   // Worst drawdown during trade
+
+    // Performance Impact
+    double                  agent_performance_impact[5]; // Impact on each agent's performance
+
+    // Learning Metrics
+    bool                    consensus_quality_confirmed; // Did result confirm quality
+    double                  learning_value;         // Value for learning (0-1)
+    double                  max_favorable_excursion; // MFE metric
+    double                  max_adverse_excursion;  // MAE metric
+
+    // Constructor
+    CompleteTradeRecord()
+    {
+        Initialize();
+    }
+
+    void Initialize()
+    {
+        consensus_id = 0;
+        consensus_time = 0;
+        consensus_direction = 0; // VOTE_NEUTRAL
+        consensus_strength = 0.0;
+        total_conviction = 0.0;
+        leading_agent = "";
+
+        for(int i = 0; i < 5; i++)
+        {
+            participating_agents[i] = "";
+            agent_votes[i] = 0.0;
+            agent_confidences[i] = 0.0;
+            agent_performance_impact[i] = 0.0;
+        }
+
+        veto_used = false;
+        initial_volatility = 0.0;
+        initial_momentum = 0.0;
+        initial_fear = 0.0;
+        initial_greed = 0.0;
+        session_type = 0;
+        sr_level_strength = 0.0;
+
+        order_open_time = 0;
+        order_open_price = 0.0;
+        order_lot_size = 0.0;
+        order_sl = 0.0;
+        order_tp = 0.0;
+        order_position_in_cycle = 0;
+        order_ticket = 0;
+
+        order_close_time = 0;
+        order_close_price = 0.0;
+        order_profit = 0.0;
+        order_profit_points = 0.0;
+        order_success = false;
+        order_duration_bars = 0;
+        max_profit_reached = 0.0;
+        max_drawdown_reached = 0.0;
+
+        consensus_quality_confirmed = false;
+        learning_value = 0.0;
+        max_favorable_excursion = 0.0;
+        max_adverse_excursion = 0.0;
+    }
+};
+
+//+------------------------------------------------------------------+
 //| Funciones Globales Utilitarias - AUDITADA Y CORREGIDA          |
 //+------------------------------------------------------------------+
 double GlobalRandomNormal(double mean, double std) {
@@ -80,7 +203,8 @@ enum ENUM_ML_STRATEGY {
     STRAT_ADAPTIVE = 3      // Se ajusta dinámicamente
 };
 
-enum ENUM_MARKET_SESSION {
+enum ENUM_MARKET_SESSION
+{
     SESSION_ASIAN = 0,
     SESSION_LONDON = 1,
     SESSION_NEWYORK = 2,
@@ -3516,16 +3640,26 @@ struct AgentStats {
     double weight;          // NUEVO: para ajustes dinámicos
     bool   has_veto;        // NUEVO: para privilegios
     int    privilege_level; // NUEVO: 0=Novice, 1=Senior, 2=Master, 3=Oracle
-    
+    int    trades_as_leader;
+    int    wins_as_leader;
+    double profit_as_leader;
+    double max_drawdown;
+    datetime last_update;
+
     AgentStats() {
-        trades = 0; 
+        trades = 0;
         wins = 0;
-        consecutive_wins = 0; 
+        consecutive_wins = 0;
         consecutive_losses = 0;
         total_profit = 0.0;
         weight = 1.0;
         has_veto = false;
         privilege_level = 0;
+        trades_as_leader = 0;
+        wins_as_leader = 0;
+        profit_as_leader = 0.0;
+        max_drawdown = 0.0;
+        last_update = 0;
     }
 };
 
@@ -3607,6 +3741,10 @@ private:
     double m_severityScaleFactor;
     double m_recoveryRate;
 
+    // === Trade Record Storage ===
+    CompleteTradeRecord* m_tradeRecords[100];  // Storage for trade record pointers
+    int m_tradeRecordCount;                   // Number of stored records
+
 public:
     MetaLearningSystem() {
         // Initialize enhanced prediction state
@@ -3651,6 +3789,22 @@ public:
         // Inicializar patrones de error
         for(int i = 0; i < 50; i++) {
             m_errorPatterns[i].Initialize();
+        }
+
+        // Inicializar contador de registros de trade
+        m_tradeRecordCount = 0;
+        for(int i = 0; i < 100; i++) {
+            m_tradeRecords[i] = NULL;
+        }
+    }
+
+    ~MetaLearningSystem() {
+        // Cleanup trade records
+        for(int i = 0; i < 100; i++) {
+            if(m_tradeRecords[i] != NULL) {
+                delete m_tradeRecords[i];
+                m_tradeRecords[i] = NULL;
+            }
         }
     }
 
@@ -4606,92 +4760,227 @@ double GetOverallWinRate() {
 
     void AdjustAgentConviction(const int agentId, const double baseConviction) { /* opcional: learning rule */ }
 
-    // ====== Missing methods required by TradingStrategy.mq5 ======
+    //+------------------------------------------------------------------+
+    //| Trade Record Management Methods                                  |
+    //+------------------------------------------------------------------+
 
-    // Get consensus success rate
-    double GetConsensusSuccessRate() {
-        return GetOverallWinRate();
-    }
-
-    // Record consensus decision (stub implementation)
-    void RecordConsensusDecision(ConsensusMemory &mem) {
-        // Store consensus decision for later analysis
-        // This is a stub implementation - can be enhanced to track consensus decisions
-        Print("📊 Recording consensus decision: ID=", mem.consensus_id,
-              " Strength=", DoubleToString(mem.consensus_strength, 2));
-    }
-
-    // Detect regime change (stub implementation)
-    void DetectRegimeChange(double &market_metrics[]) {
-        if(ArraySize(market_metrics) < 3) return;
-
-        double volatilityRatio = market_metrics[0];
-        double trendStrength = market_metrics[1];
-        double correlationChange = market_metrics[2];
-
-        // Simple regime change detection based on metrics
-        if(volatilityRatio > 1.5) {
-            Print("⚡ High volatility regime detected - adjusting weights");
-            // Could adjust agent weights here based on regime
-        }
-    }
-
-    // Learn from multi-order cycle
-    void LearnFromMultiOrderCycle(MultiOrderCycle &cycle) {
-        if(cycle.orderCount == 0) return;
-
-        bool success = cycle.cycleProfit > 0;
-        double pnl = cycle.cycleProfit;
-
-        // Create contributors array based on cycle data
-        double contributors[5];
-        for(int i = 0; i < 5; i++) {
-            contributors[i] = 0.2; // Equal contribution by default
-        }
-
-        // Learn from the cycle result
-        LearnFromResult(success, pnl, contributors, 5, "MultiOrderCycle", cycle.initial_consensus_id);
-
-        Print("📚 Learning from multi-order cycle: Orders=", cycle.orderCount,
-              " Profit=", DoubleToString(pnl, 2),
-              " Success=", (success ? "Yes" : "No"));
-    }
-
-    // Get agent contextual performance
-    double GetAgentContextualPerformance(ENUM_COMPONENT_TYPE component, DecisionContext &context) {
-        int agentId = (int)component;
-
-        if(agentId < 0 || agentId >= QUANTUM_MAX_AGENTS) {
-            return 0.5;
-        }
-
-        // Get base win rate for the agent
-        double baseWR = GetAgentWinRate(agentId);
-
-        // Adjust based on context (simple implementation)
-        // Could be enhanced to track performance by regime, volatility, etc.
-        double contextAdjustment = 1.0;
-
-        // Adjust for high volatility
-        if(context.volatility > 1.5) {
-            // Some agents perform better in high volatility
-            if(agentId == COMPONENT_BREAKOUT_DETECT) {
-                contextAdjustment *= 1.1;
+    // Store or update a complete trade record
+    void StoreCompleteTradeRecord(const CompleteTradeRecord &record)
+    {
+        // Check if record already exists (by consensus_id)
+        int existingIdx = -1;
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].consensus_id == record.consensus_id)
+            {
+                existingIdx = i;
+                break;
             }
         }
 
-        // Adjust for momentum
-        if(MathAbs(context.momentum) > 0.7) {
-            if(agentId == COMPONENT_PATTERN_MEMORY) {
-                contextAdjustment *= 1.05;
+        if(existingIdx >= 0)
+        {
+            // Update existing record - copy all fields
+            m_tradeRecords[existingIdx].consensus_id = record.consensus_id;
+            m_tradeRecords[existingIdx].consensus_time = record.consensus_time;
+            m_tradeRecords[existingIdx].consensus_direction = record.consensus_direction;
+            m_tradeRecords[existingIdx].consensus_strength = record.consensus_strength;
+            m_tradeRecords[existingIdx].total_conviction = record.total_conviction;
+            m_tradeRecords[existingIdx].leading_agent = record.leading_agent;
+
+            for(int i = 0; i < 5; i++)
+            {
+                m_tradeRecords[existingIdx].participating_agents[i] = record.participating_agents[i];
+                m_tradeRecords[existingIdx].agent_votes[i] = record.agent_votes[i];
+                m_tradeRecords[existingIdx].agent_confidences[i] = record.agent_confidences[i];
+                m_tradeRecords[existingIdx].agent_performance_impact[i] = record.agent_performance_impact[i];
+            }
+
+            m_tradeRecords[existingIdx].veto_used = record.veto_used;
+            m_tradeRecords[existingIdx].initial_volatility = record.initial_volatility;
+            m_tradeRecords[existingIdx].initial_momentum = record.initial_momentum;
+            m_tradeRecords[existingIdx].initial_fear = record.initial_fear;
+            m_tradeRecords[existingIdx].initial_greed = record.initial_greed;
+            m_tradeRecords[existingIdx].session_type = record.session_type;
+            m_tradeRecords[existingIdx].sr_level_strength = record.sr_level_strength;
+
+            m_tradeRecords[existingIdx].order_open_time = record.order_open_time;
+            m_tradeRecords[existingIdx].order_open_price = record.order_open_price;
+            m_tradeRecords[existingIdx].order_lot_size = record.order_lot_size;
+            m_tradeRecords[existingIdx].order_sl = record.order_sl;
+            m_tradeRecords[existingIdx].order_tp = record.order_tp;
+            m_tradeRecords[existingIdx].order_position_in_cycle = record.order_position_in_cycle;
+            m_tradeRecords[existingIdx].order_ticket = record.order_ticket;
+
+            m_tradeRecords[existingIdx].order_close_time = record.order_close_time;
+            m_tradeRecords[existingIdx].order_close_price = record.order_close_price;
+            m_tradeRecords[existingIdx].order_profit = record.order_profit;
+            m_tradeRecords[existingIdx].order_profit_points = record.order_profit_points;
+            m_tradeRecords[existingIdx].order_success = record.order_success;
+            m_tradeRecords[existingIdx].order_duration_bars = record.order_duration_bars;
+            m_tradeRecords[existingIdx].max_profit_reached = record.max_profit_reached;
+            m_tradeRecords[existingIdx].max_drawdown_reached = record.max_drawdown_reached;
+
+            m_tradeRecords[existingIdx].consensus_quality_confirmed = record.consensus_quality_confirmed;
+            m_tradeRecords[existingIdx].learning_value = record.learning_value;
+            m_tradeRecords[existingIdx].max_favorable_excursion = record.max_favorable_excursion;
+            m_tradeRecords[existingIdx].max_adverse_excursion = record.max_adverse_excursion;
+        }
+        else
+        {
+            // Add new record
+            if(m_tradeRecordCount < 100)
+            {
+                m_tradeRecords[m_tradeRecordCount] = new CompleteTradeRecord();
+                m_tradeRecords[m_tradeRecordCount].consensus_id = record.consensus_id;
+                m_tradeRecords[m_tradeRecordCount].consensus_time = record.consensus_time;
+                m_tradeRecords[m_tradeRecordCount].consensus_direction = record.consensus_direction;
+                m_tradeRecords[m_tradeRecordCount].consensus_strength = record.consensus_strength;
+                m_tradeRecords[m_tradeRecordCount].total_conviction = record.total_conviction;
+                m_tradeRecords[m_tradeRecordCount].leading_agent = record.leading_agent;
+
+                for(int i = 0; i < 5; i++)
+                {
+                    m_tradeRecords[m_tradeRecordCount].participating_agents[i] = record.participating_agents[i];
+                    m_tradeRecords[m_tradeRecordCount].agent_votes[i] = record.agent_votes[i];
+                    m_tradeRecords[m_tradeRecordCount].agent_confidences[i] = record.agent_confidences[i];
+                    m_tradeRecords[m_tradeRecordCount].agent_performance_impact[i] = record.agent_performance_impact[i];
+                }
+
+                m_tradeRecords[m_tradeRecordCount].veto_used = record.veto_used;
+                m_tradeRecords[m_tradeRecordCount].initial_volatility = record.initial_volatility;
+                m_tradeRecords[m_tradeRecordCount].initial_momentum = record.initial_momentum;
+                m_tradeRecords[m_tradeRecordCount].initial_fear = record.initial_fear;
+                m_tradeRecords[m_tradeRecordCount].initial_greed = record.initial_greed;
+                m_tradeRecords[m_tradeRecordCount].session_type = record.session_type;
+                m_tradeRecords[m_tradeRecordCount].sr_level_strength = record.sr_level_strength;
+
+                m_tradeRecords[m_tradeRecordCount].order_open_time = record.order_open_time;
+                m_tradeRecords[m_tradeRecordCount].order_open_price = record.order_open_price;
+                m_tradeRecords[m_tradeRecordCount].order_lot_size = record.order_lot_size;
+                m_tradeRecords[m_tradeRecordCount].order_sl = record.order_sl;
+                m_tradeRecords[m_tradeRecordCount].order_tp = record.order_tp;
+                m_tradeRecords[m_tradeRecordCount].order_position_in_cycle = record.order_position_in_cycle;
+                m_tradeRecords[m_tradeRecordCount].order_ticket = record.order_ticket;
+
+                m_tradeRecords[m_tradeRecordCount].order_close_time = record.order_close_time;
+                m_tradeRecords[m_tradeRecordCount].order_close_price = record.order_close_price;
+                m_tradeRecords[m_tradeRecordCount].order_profit = record.order_profit;
+                m_tradeRecords[m_tradeRecordCount].order_profit_points = record.order_profit_points;
+                m_tradeRecords[m_tradeRecordCount].order_success = record.order_success;
+                m_tradeRecords[m_tradeRecordCount].order_duration_bars = record.order_duration_bars;
+                m_tradeRecords[m_tradeRecordCount].max_profit_reached = record.max_profit_reached;
+                m_tradeRecords[m_tradeRecordCount].max_drawdown_reached = record.max_drawdown_reached;
+
+                m_tradeRecords[m_tradeRecordCount].consensus_quality_confirmed = record.consensus_quality_confirmed;
+                m_tradeRecords[m_tradeRecordCount].learning_value = record.learning_value;
+                m_tradeRecords[m_tradeRecordCount].max_favorable_excursion = record.max_favorable_excursion;
+                m_tradeRecords[m_tradeRecordCount].max_adverse_excursion = record.max_adverse_excursion;
+
+                m_tradeRecordCount++;
+            }
+            else
+            {
+                // Array is full, remove oldest and shift
+                if(m_tradeRecords[0] != NULL)
+                {
+                    delete m_tradeRecords[0];
+                }
+
+                for(int i = 0; i < 99; i++)
+                {
+                    m_tradeRecords[i] = m_tradeRecords[i + 1];
+                }
+
+                m_tradeRecords[99] = new CompleteTradeRecord();
+                m_tradeRecords[99].consensus_id = record.consensus_id;
+                m_tradeRecords[99].consensus_time = record.consensus_time;
+                m_tradeRecords[99].consensus_direction = record.consensus_direction;
+                m_tradeRecords[99].consensus_strength = record.consensus_strength;
+                m_tradeRecords[99].total_conviction = record.total_conviction;
+                m_tradeRecords[99].leading_agent = record.leading_agent;
+
+                for(int i = 0; i < 5; i++)
+                {
+                    m_tradeRecords[99].participating_agents[i] = record.participating_agents[i];
+                    m_tradeRecords[99].agent_votes[i] = record.agent_votes[i];
+                    m_tradeRecords[99].agent_confidences[i] = record.agent_confidences[i];
+                    m_tradeRecords[99].agent_performance_impact[i] = record.agent_performance_impact[i];
+                }
+
+                m_tradeRecords[99].veto_used = record.veto_used;
+                m_tradeRecords[99].initial_volatility = record.initial_volatility;
+                m_tradeRecords[99].initial_momentum = record.initial_momentum;
+                m_tradeRecords[99].initial_fear = record.initial_fear;
+                m_tradeRecords[99].initial_greed = record.initial_greed;
+                m_tradeRecords[99].session_type = record.session_type;
+                m_tradeRecords[99].sr_level_strength = record.sr_level_strength;
+
+                m_tradeRecords[99].order_open_time = record.order_open_time;
+                m_tradeRecords[99].order_open_price = record.order_open_price;
+                m_tradeRecords[99].order_lot_size = record.order_lot_size;
+                m_tradeRecords[99].order_sl = record.order_sl;
+                m_tradeRecords[99].order_tp = record.order_tp;
+                m_tradeRecords[99].order_position_in_cycle = record.order_position_in_cycle;
+                m_tradeRecords[99].order_ticket = record.order_ticket;
+
+                m_tradeRecords[99].order_close_time = record.order_close_time;
+                m_tradeRecords[99].order_close_price = record.order_close_price;
+                m_tradeRecords[99].order_profit = record.order_profit;
+                m_tradeRecords[99].order_profit_points = record.order_profit_points;
+                m_tradeRecords[99].order_success = record.order_success;
+                m_tradeRecords[99].order_duration_bars = record.order_duration_bars;
+                m_tradeRecords[99].max_profit_reached = record.max_profit_reached;
+                m_tradeRecords[99].max_drawdown_reached = record.max_drawdown_reached;
+
+                m_tradeRecords[99].consensus_quality_confirmed = record.consensus_quality_confirmed;
+                m_tradeRecords[99].learning_value = record.learning_value;
+                m_tradeRecords[99].max_favorable_excursion = record.max_favorable_excursion;
+                m_tradeRecords[99].max_adverse_excursion = record.max_adverse_excursion;
             }
         }
-
-        double contextualPerf = baseWR * contextAdjustment;
-        return MathMax(0.0, MathMin(1.0, contextualPerf));
     }
 
-    // ====== End of missing methods ======
+    // Register a consensus order by linking consensus_id with order ticket
+    void RegisterConsensusOrder(ulong consensus_id, ulong ticket)
+    {
+        // Find the record with matching consensus_id
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].consensus_id == consensus_id)
+            {
+                m_tradeRecords[i].order_ticket = ticket;
+                return;
+            }
+        }
+    }
+
+    // Get pointer to trade record by consensus_id
+    CompleteTradeRecord* GetTradeRecord(ulong consensus_id)
+    {
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].consensus_id == consensus_id)
+            {
+                return m_tradeRecords[i];
+            }
+        }
+        return NULL;
+    }
+
+    // Get pointer to trade record by order ticket
+    CompleteTradeRecord* GetTradeRecordByTicket(ulong ticket)
+    {
+        for(int i = 0; i < m_tradeRecordCount; i++)
+        {
+            if(m_tradeRecords[i] != NULL && m_tradeRecords[i].order_ticket == ticket)
+            {
+                return m_tradeRecords[i];
+            }
+        }
+        return NULL;
+    }
+
     };
 
 #endif // META_LEARNING_QUANTUM_MQH
