@@ -1003,9 +1003,9 @@ void CSupportResistance::UpdateTouchCounts() {
 //+------------------------------------------------------------------+
 bool CSupportResistance::DetectSRTouch(TouchContext &touchContext) {
     touchContext.valid = false;
-    
+
     double currentPrice = m_currentBid;
-    
+
     // Debounce: procesa solo en nueva barra o si el precio se movió >=5 ticks
     static datetime __sr_last_bar = 0;
     static double   __sr_last_probe = 0.0;
@@ -1016,27 +1016,46 @@ bool CSupportResistance::DetectSRTouch(TouchContext &touchContext) {
     }
     __sr_last_bar = __sr_cur_bar;
     __sr_last_probe = currentPrice;
-double minDistance = DBL_MAX;
+
+    double minDistance = DBL_MAX;
     int bestIndex = -1;
     double bestQuality = 0;
-    
+
+    // DEBUG: Contador de niveles activos
+    static int debugTouchCounter = 0;
+    debugTouchCounter++;
+    bool showDebug = (debugTouchCounter >= 100);
+    if(showDebug) debugTouchCounter = 0;
+
+    int activeLevels = 0;
+    int initialLevels = 0;
+    int confirmedLevels = 0;
+    int levelsInRange = 0;
+
     // Buscar el mejor nivel tocado
     for(int i = 0; i < MAX_SR_LEVELS; i++) {
-        // Permitir toques en niveles INITIAL, CONFIRMED o VALIDATED (era solo CONFIRMED+)
-        if(!m_levels[i].active || m_levels[i].state < SR_STATE_INITIAL) continue;
-        
+        if(!m_levels[i].active) continue;
+
+        activeLevels++;
+        if(m_levels[i].state == SR_STATE_INITIAL) initialLevels++;
+        if(m_levels[i].state >= SR_STATE_CONFIRMED) confirmedLevels++;
+
+        // Permitir toques en niveles INITIAL, CONFIRMED o VALIDATED
+        if(m_levels[i].state < SR_STATE_INITIAL) continue;
+
         double distance = MathAbs(currentPrice - m_levels[i].price);
-        
+
         // Verificar si está dentro de la zona
-        bool inZone = (currentPrice >= m_levels[i].zoneLow && 
+        bool inZone = (currentPrice >= m_levels[i].zoneLow &&
                       currentPrice <= m_levels[i].zoneHigh);
-        
+
         if(inZone) {
+            levelsInRange++;
             // Calcular calidad del toque
             double quality = GetLevelImportance(m_levels[i]);
-            
+
             // Priorizar por calidad, no solo por distancia
-            if(quality > bestQuality || 
+            if(quality > bestQuality ||
                (quality == bestQuality && distance < minDistance)) {
                 minDistance = distance;
                 bestIndex = i;
@@ -1044,7 +1063,22 @@ double minDistance = DBL_MAX;
             }
         }
     }
-    
+
+    // DEBUG: Mostrar estado cada 100 barras
+    if(showDebug) {
+        Print("╔═══ DEBUG: DetectSRTouch Estado ═══╗");
+        Print("║ Precio actual: ", DoubleToString(currentPrice, _Digits));
+        Print("║ Niveles activos: ", activeLevels);
+        Print("║ Niveles INITIAL: ", initialLevels);
+        Print("║ Niveles CONFIRMED+: ", confirmedLevels);
+        Print("║ Niveles en rango: ", levelsInRange);
+        if(bestIndex >= 0) {
+            Print("║ Mejor nivel encontrado: ", m_levels[bestIndex].price);
+            Print("║ Calidad: ", DoubleToString(bestQuality, 3));
+        }
+        Print("╚════════════════════════════════════╝");
+    }
+
     // Si encontramos un nivel tocado
     if(bestIndex >= 0) {
         touchContext.valid = true;
@@ -1057,14 +1091,14 @@ double minDistance = DBL_MAX;
         touchContext.distanceToLevel = minDistance;
         touchContext.levelStrength = m_levels[bestIndex].strength;
         touchContext.touchNumber = m_levels[bestIndex].touchCount + 1;
-        
+
         // Verificar si es el primer toque reciente
         datetime timeSinceLastTouch = TimeCurrent() - m_levels[bestIndex].lastTouchTime;
         touchContext.isFirstTouch = (timeSinceLastTouch > PeriodSeconds(m_levels[bestIndex].sourceTimeframe) * 10);
-        
+
         return true;
     }
-    
+
     return false;
 }
 
