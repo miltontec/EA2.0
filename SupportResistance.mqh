@@ -1040,8 +1040,9 @@ bool CSupportResistance::DetectSRTouch(TouchContext &touchContext) {
         if(m_levels[i].state == SR_STATE_INITIAL) initialLevels++;
         if(m_levels[i].state >= SR_STATE_CONFIRMED) confirmedLevels++;
 
-        // Permitir toques en niveles INITIAL, CONFIRMED o VALIDATED
-        if(m_levels[i].state < SR_STATE_INITIAL) continue;
+        // Solo permitir toques en niveles CONFIRMED o VALIDATED (el original)
+        // Los niveles necesitan confirmarse primero para tener zonas adecuadas
+        if(m_levels[i].state < SR_STATE_CONFIRMED) continue;
 
         double distance = MathAbs(currentPrice - m_levels[i].price);
 

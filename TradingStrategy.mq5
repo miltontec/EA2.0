@@ -1363,11 +1363,6 @@ bool ValidateSRTouchAdaptive(const TouchContext &touchCtx)
     // UMBRAL ADAPTATIVO
     double threshold = 40.0; // Base 40%
 
-    // CRITICAL: Reducir umbral para niveles INITIAL (recién creados)
-    // Los niveles nuevos tienen baja calidad pero son válidos para trading
-    if(touchCtx.level.state == SR_STATE_INITIAL)
-        threshold = 20.0; // Más flexible para niveles nuevos
-
     // Ajustar umbral según condiciones
     if(g_market.volatilityRatio > 2.0)
         threshold -= 10.0; // Más flexible en alta volatilidad
