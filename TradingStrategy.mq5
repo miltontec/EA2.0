@@ -942,8 +942,29 @@ void ProcessWaitingSRTouch()
     // Detectar toque S/R
     TouchContext touchCtx;
     bool touchDetected = g_srManager.DetectSRTouch(touchCtx);
-    
-    if(!touchDetected || !touchCtx.valid) 
+
+    // DEBUG: Mostrar información cada 50 barras para diagnóstico
+    static int debugCounter = 0;
+    debugCounter++;
+    if(debugCounter >= 50)
+    {
+        debugCounter = 0;
+        int totalLevels = g_srManager.GetLevelCount();
+        double currentPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+        Print("╔═══ DEBUG: Estado S/R Touch Detection ═══╗");
+        Print("║ Niveles S/R activos: ", totalLevels);
+        Print("║ Precio actual: ", DoubleToString(currentPrice, _Digits));
+        Print("║ Toque detectado: ", touchDetected ? "SÍ" : "NO");
+        if(touchDetected)
+        {
+            Print("║ Toque válido: ", touchCtx.valid ? "SÍ" : "NO");
+            Print("║ Calidad toque: ", DoubleToString(touchCtx.quality, 3));
+            Print("║ Fuerza nivel: ", DoubleToString(touchCtx.levelStrength, 2));
+        }
+        Print("╚══════════════════════════════════════════╝");
+    }
+
+    if(!touchDetected || !touchCtx.valid)
     {
         // Debug cada 10 barras para no saturar el log
         if(ShowDebugInfo && MathMod(g_barsInCurrentState, 10) == 0)
@@ -974,20 +995,21 @@ void ProcessWaitingSRTouch()
     
     // Validar toque SR con criterios apropiados
     bool touchValid = false;
-    
+
     if(seekingAdditional)
     {
         // Para órdenes adicionales, usar criterios sensibles
         touchValid = ValidateSRTouchSensitive(touchCtx);
-        
+
+        Print("► Validación toque adicional: ", touchValid ? "VÁLIDO" : "RECHAZADO");
+
         if(touchValid)
         {
             // Verificar que sea en la misma dirección
             bool sameDirection = CheckSameDirection(touchCtx);
             if(!sameDirection)
             {
-                if(ShowDebugInfo) 
-                    Print("Toque SR en dirección contraria - ignorando");
+                Print("► Toque SR en dirección contraria - ignorando");
                 return;
             }
         }
@@ -996,8 +1018,12 @@ void ProcessWaitingSRTouch()
     {
         // Para primera orden, usar validación adaptativa
         touchValid = ValidateSRTouchAdaptive(touchCtx);
+        Print("► Validación toque inicial: ", touchValid ? "VÁLIDO ✓" : "RECHAZADO ✗");
+        Print("  - Calidad: ", DoubleToString(touchCtx.quality, 3));
+        Print("  - Fuerza nivel: ", DoubleToString(touchCtx.levelStrength, 2));
+        Print("  - Estado nivel: ", touchCtx.level.state);
     }
-    
+
     if(touchValid)
     {
         // Guardar contexto del toque
