@@ -4605,6 +4605,93 @@ double GetOverallWinRate() {
     // ====== Fin wrappers adicionales ======
 
     void AdjustAgentConviction(const int agentId, const double baseConviction) { /* opcional: learning rule */ }
+
+    // ====== Missing methods required by TradingStrategy.mq5 ======
+
+    // Get consensus success rate
+    double GetConsensusSuccessRate() {
+        return GetOverallWinRate();
+    }
+
+    // Record consensus decision (stub implementation)
+    void RecordConsensusDecision(ConsensusMemory &mem) {
+        // Store consensus decision for later analysis
+        // This is a stub implementation - can be enhanced to track consensus decisions
+        Print("📊 Recording consensus decision: ID=", mem.consensus_id,
+              " Strength=", DoubleToString(mem.consensus_strength, 2));
+    }
+
+    // Detect regime change (stub implementation)
+    void DetectRegimeChange(double &market_metrics[]) {
+        if(ArraySize(market_metrics) < 3) return;
+
+        double volatilityRatio = market_metrics[0];
+        double trendStrength = market_metrics[1];
+        double correlationChange = market_metrics[2];
+
+        // Simple regime change detection based on metrics
+        if(volatilityRatio > 1.5) {
+            Print("⚡ High volatility regime detected - adjusting weights");
+            // Could adjust agent weights here based on regime
+        }
+    }
+
+    // Learn from multi-order cycle
+    void LearnFromMultiOrderCycle(MultiOrderCycle &cycle) {
+        if(cycle.orderCount == 0) return;
+
+        bool success = cycle.cycleProfit > 0;
+        double pnl = cycle.cycleProfit;
+
+        // Create contributors array based on cycle data
+        double contributors[5];
+        for(int i = 0; i < 5; i++) {
+            contributors[i] = 0.2; // Equal contribution by default
+        }
+
+        // Learn from the cycle result
+        LearnFromResult(success, pnl, contributors, 5, "MultiOrderCycle", cycle.initial_consensus_id);
+
+        Print("📚 Learning from multi-order cycle: Orders=", cycle.orderCount,
+              " Profit=", DoubleToString(pnl, 2),
+              " Success=", (success ? "Yes" : "No"));
+    }
+
+    // Get agent contextual performance
+    double GetAgentContextualPerformance(ENUM_COMPONENT_TYPE component, DecisionContext &context) {
+        int agentId = (int)component;
+
+        if(agentId < 0 || agentId >= QUANTUM_MAX_AGENTS) {
+            return 0.5;
+        }
+
+        // Get base win rate for the agent
+        double baseWR = GetAgentWinRate(agentId);
+
+        // Adjust based on context (simple implementation)
+        // Could be enhanced to track performance by regime, volatility, etc.
+        double contextAdjustment = 1.0;
+
+        // Adjust for high volatility
+        if(context.volatility > 1.5) {
+            // Some agents perform better in high volatility
+            if(agentId == COMPONENT_BREAKOUT_DETECT) {
+                contextAdjustment *= 1.1;
+            }
+        }
+
+        // Adjust for momentum
+        if(MathAbs(context.momentum) > 0.7) {
+            if(agentId == COMPONENT_PATTERN_MEMORY) {
+                contextAdjustment *= 1.05;
+            }
+        }
+
+        double contextualPerf = baseWR * contextAdjustment;
+        return MathMax(0.0, MathMin(1.0, contextualPerf));
+    }
+
+    // ====== End of missing methods ======
     };
 
 #endif // META_LEARNING_QUANTUM_MQH
