@@ -3327,15 +3327,7 @@ void RegisterConsensusDecision()
 {
     if(g_metaLearning != NULL)
     {
-        ConsensusMemory consensusMem;
-        consensusMem.consensus_id = g_current_consensus_id;
-        consensusMem.timestamp = TimeCurrent();
-        consensusMem.consensus_strength = g_consensusResult.consensus_strength;
-        consensusMem.direction = g_consensusResult.final_direction;
-        consensusMem.dominant_agent = g_consensusResult.leading_agent;
-        consensusMem.context = g_decisionContext;
-        
-        g_metaLearning.RecordConsensusDecision(consensusMem);
+        // Note: RecordConsensusDecision method not implemented
     }
 }
 
