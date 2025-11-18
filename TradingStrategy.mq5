@@ -3621,7 +3621,27 @@ bool DetectAccumulationPattern()
             break;
         }
     }
-    
+
+    // DEBUG: Mostrar información de acumulación cada 10 barras
+    static int debugAccumCounter = 0;
+    debugAccumCounter++;
+    if(debugAccumCounter >= 10)
+    {
+        debugAccumCounter = 0;
+        double currentRange = highPrice - lowPrice;
+        double maxAllowedRange = g_market.currentATR * AccumulationRangeATR;
+        Print("╔═══ DEBUG: Detección de Acumulación ═══╗");
+        Print("║ Barras detectadas: ", accumBars, " / ", minBarsNeeded, " requeridas");
+        Print("║ Rango actual: ", DoubleToString(currentRange, _Digits),
+              " (", DoubleToString(currentRange / g_market.currentATR, 2), " ATRs)");
+        Print("║ Rango máximo: ", DoubleToString(maxAllowedRange, _Digits),
+              " (", DoubleToString(AccumulationRangeATR, 2), " ATRs)");
+        Print("║ ATR actual: ", DoubleToString(g_market.currentATR, _Digits));
+        Print("║ Barras desde toque: ", g_accumBarsSinceTouch, " / ", AccumulationTimeout, " timeout");
+        Print("║ Estado: ", (accumBars >= minBarsNeeded ? "VÁLIDO ✓" : "INSUFICIENTE ✗"));
+        Print("╚════════════════════════════════════════╝");
+    }
+
     if(accumBars >= minBarsNeeded)
     {
         g_accumContext.valid = true;
@@ -3633,10 +3653,10 @@ bool DetectAccumulationPattern()
         g_accumContext.startTime = rates[accumBars-1].time;
         g_accumContext.endTime = rates[0].time;
         g_accumContext.volumeConfirmation = CheckVolumePattern(rates, accumBars);
-        
+
         return true;
     }
-    
+
     return false;
 }
 
