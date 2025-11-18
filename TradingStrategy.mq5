@@ -2827,10 +2827,7 @@ void UpdateAllAgentStatsFromCycle(bool success, double profit)
                 // Si fue líder
                 if(g_consensusResult.leading_agent == g_metaLearning.m_agentNames[i])
                 {
-                    // Note: trades_as_leader field not present
-                    // Note: profit_as_leader field not present
-                    if(success && votedCorrectly)
-                        // Note: wins_as_leader field not present
+                    // Note: trades_as_leader, profit_as_leader, wins_as_leader fields not present
                 }
             }
         }
