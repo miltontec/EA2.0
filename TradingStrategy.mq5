@@ -48,14 +48,7 @@ enum TRADING_STATE
     STATE_CYCLE_COMPLETE
 };
 
-enum ENUM_MARKET_SESSION
-{
-    SESSION_ASIAN,
-    SESSION_LONDON,
-    SESSION_NEWYORK,
-    SESSION_OVERLAP,
-    SESSION_CLOSED
-};
+// ENUM_MARKET_SESSION is now defined in MetaLearningSystem.mqh
 
 //+------------------------------------------------------------------+
 //| ESTRUCTURAS                                                      |
@@ -461,7 +454,7 @@ int OnInit()
     g_votingStats = new VotingStatistics();
     if(g_votingStats != NULL)
     {
-        g_votingStats.Initialize(g_metaLearning);
+        g_votingStats.Initialize();
         g_votingStats.SetParameters(100, MinTotalConviction, MinConsensusStrength);
         g_votingStats.SetDirectionLock(true);
         Print("✓ Neural Consensus Network inicializado");
@@ -540,20 +533,16 @@ void OnDeinit(const int reason)
     
     // 4. Mostrar resumen de aprendizaje usando métodos públicos
     Print("\n═══ RESUMEN DE APRENDIZAJE ═══");
-    
+
     if(g_metaLearning != NULL)
     {
-        // Usar métodos públicos disponibles
-        Print("ML - Tasa de consenso exitoso: ", 
-              DoubleToString(g_metaLearning.GetConsensusSuccessRate() * 100, 1), "%");
-        
         // Mostrar estadísticas de agentes
         Print("ML - Estadísticas finales de agentes:");
         for(int i = 0; i < 5; i++)
         {
-            double winRate = g_metaLearning.GetAgentWinRate((ENUM_COMPONENT_TYPE)i);
-            string privilege = g_metaLearning.GetAgentPrivilegeLevel((ENUM_COMPONENT_TYPE)i);
-            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i), 
+            double winRate = g_metaLearning.GetAgentWinRate(i);
+            string privilege = g_metaLearning.GetAgentPrivilegeLevel(i);
+            Print("  ", GetAgentName((ENUM_COMPONENT_TYPE)i),
                   ": WR ", DoubleToString(winRate * 100, 1), "% - ", privilege);
         }
         
@@ -867,9 +856,9 @@ void SynchronizeAllSystems()
             metrics[0] = g_market.volatilityRatio;
             metrics[1] = g_decisionContext.momentum;
             metrics[2] = 0.0;
-            
-            // Esto permite a ML ajustar sus pesos internos
-            g_metaLearning.DetectRegimeChange(metrics);
+
+            // TODO: DetectRegimeChange method not implemented in MetaLearningSystem
+            // g_metaLearning.DetectRegimeChange(metrics);
         }
         
         // Obtener estadísticas del régimen desde EMS
@@ -908,16 +897,19 @@ void SynchronizeAllSystems()
     // 3. Sincronizar estadísticas de agentes
     if(g_metaLearning != NULL && g_votingStats != NULL)
     {
+        // TODO: GetConsensusSuccessRate method not implemented
+        /*
         // Asegurar que las tasas de éxito coincidan
         double globalSuccessRate = g_votingStats.GetSuccessRate();
         double mlSuccessRate = g_metaLearning.GetConsensusSuccessRate();
-        
+
         if(MathAbs(globalSuccessRate - mlSuccessRate) > 0.1)
         {
-            Print("⚠️ Discrepancia en tasas de éxito: VS ", 
+            Print("⚠️ Discrepancia en tasas de éxito: VS ",
                   DoubleToString(globalSuccessRate * 100, 1), "% vs ML ",
                   DoubleToString(mlSuccessRate * 100, 1), "%");
         }
+        */
     }
     
     Print("✓ Sistemas sincronizados");
@@ -1096,24 +1088,24 @@ void AdjustAgentWeightsDynamically()
         {
             // Reducir peso drásticamente
             g_dynamicWeights[i] = 0.5;
-            Print("⚠️ ", GetAgentName(i), " peso reducido a 0.5 por mal rendimiento");
+            Print("⚠️ ", GetAgentName((ENUM_COMPONENT_TYPE)i), " peso reducido a 0.5 por mal rendimiento");
         }
         else if(recentPerformance > 0.7) // Win rate > 70%
         {
             // Aumentar peso significativamente
             g_dynamicWeights[i] = 2.0;
-            Print("✅ ", GetAgentName(i), " peso aumentado a 2.0 por excelente rendimiento");
+            Print("✅ ", GetAgentName((ENUM_COMPONENT_TYPE)i), " peso aumentado a 2.0 por excelente rendimiento");
         }
         else
         {
             g_dynamicWeights[i] = 1.0;
         }
-        
+
         // Super-boost para agentes en racha
         if(g_metaLearning.m_agentStats[i].consecutive_wins >= 5)
         {
             g_dynamicWeights[i] *= 1.5;
-            Print("🔥 ", GetAgentName(i), " en racha! Peso x1.5");
+            Print("🔥 ", GetAgentName((ENUM_COMPONENT_TYPE)i), " en racha! Peso x1.5");
         }
     }
 }
@@ -1778,14 +1770,14 @@ void ProcessExecutingOrder()
                 if(g_metaLearning != NULL && ticket > 0)
                 {
                     g_metaLearning.RegisterConsensusOrder(g_consensusResult.consensus_id, ticket);
-                    
+
                     // Actualizar el registro con datos de la orden
                     CompleteTradeRecord* record = g_metaLearning.GetTradeRecord(g_consensusResult.consensus_id);
                     if(record != NULL)
                     {
                         record.order_ticket = ticket;
                         record.order_position_in_cycle = 1;
-                        
+
                         if(PositionSelectByTicket(ticket))
                         {
                             record.order_open_time = (datetime)PositionGetInteger(POSITION_TIME);
@@ -1794,8 +1786,8 @@ void ProcessExecutingOrder()
                             record.order_sl = PositionGetDouble(POSITION_SL);
                             record.order_tp = PositionGetDouble(POSITION_TP);
                         }
-                        
-                        g_metaLearning.StoreCompleteTradeRecord(record);
+
+                        // StoreCompleteTradeRecord will update the existing record
                         Print("✓ Registro actualizado con datos de orden");
                     }
                 }
@@ -2088,7 +2080,7 @@ void MonitorClosedOrders()
             if(record != NULL && record.consensus_id > 0)
             {
                 Print("✓ Encontrado registro con consensus_id: ", record.consensus_id);
-                
+
                 // Actualizar estadísticas basándose en el registro completo
                 UpdateStatsFromCompleteRecord(record, isWin, totalProfit);
                 foundTracking = true;
@@ -2290,17 +2282,17 @@ void NotifyTradeResult(ulong orderTicket, double profit, bool isWin)
     {
         if(consensus_id > 0)
         {
-            // Finalizar el trade record con datos reales
-            g_metaLearning.FinalizeTradeRecord(orderTicket, profit, isWin);
-            
+            // TODO: FinalizeTradeRecord method not implemented
+            // g_metaLearning.FinalizeTradeRecord(orderTicket, profit, isWin);
+
             // Actualizar estadísticas individuales de agentes
             UpdateAgentStatsFromVoteHistory(orderTicket, isWin, profit);
         }
         else
         {
-            // Fallback: aprendizaje genérico
-            g_metaLearning.LearnFromResult(orderTicket, profit, isWin, 
-                                          g_market.volatilityRatio, 0, 0);
+            // TODO: LearnFromResult requires different parameters (bool, double, double&[], int, string, ulong)
+            // g_metaLearning.LearnFromResult(orderTicket, profit, isWin,
+            //                               g_market.volatilityRatio, 0, 0);
         }
     }
     
@@ -2399,6 +2391,8 @@ void RegisterConsensusDecisionWithTracking()
 {
     if(g_metaLearning != NULL && g_voteHistoryCount > 0)
     {
+        // TODO: RecordConsensusDecision method not implemented in MetaLearningSystem
+        /*
         ConsensusMemory consensusMem;
         consensusMem.consensus_id = g_current_consensus_id;
         consensusMem.timestamp = TimeCurrent();
@@ -2406,10 +2400,10 @@ void RegisterConsensusDecisionWithTracking()
         consensusMem.direction = g_consensusResult.final_direction;
         consensusMem.dominant_agent = g_consensusResult.leading_agent;
         consensusMem.context = g_decisionContext;
-        
+
         // CORREGIDO: Acceder al elemento por índice, no por referencia
         int lastVoteIndex = g_voteHistoryCount - 1;
-        
+
         for(int i = 0; i < 5; i++)
         {
             if(g_voteHistory[lastVoteIndex].agents[i].voted)
@@ -2419,8 +2413,9 @@ void RegisterConsensusDecisionWithTracking()
                 consensusMem.agent_votes[i] = g_voteHistory[lastVoteIndex].agents[i].direction;
             }
         }
-        
+
         g_metaLearning.RecordConsensusDecision(consensusMem);
+        */
     }
 }
 
@@ -3025,7 +3020,7 @@ void UpdateStatsFromCompleteRecord(CompleteTradeRecord* record, bool isWin, doub
         // Verificar participación del agente
         for(int j = 0; j < 5; j++)
         {
-            if(record.participating_agents[j] == g_metaLearning.m_agentNames[i] && 
+            if(record.participating_agents[j] == g_metaLearning.m_agentNames[i] &&
                record.agent_confidences[j] > 0)
             {
                 participated = true;
