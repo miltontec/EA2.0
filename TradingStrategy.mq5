@@ -4126,11 +4126,9 @@ void ShowPerformanceReport()
         {
             Print("╟─ ❄️ Racha perdedora: -", g_metaLearning.m_agentStats[i].consecutive_losses);
         }
-        
-        // Como líder
-                  " trades (", DoubleToString(leaderWR * 100, 1), "% WR)");
-        }
-        
+
+        // Note: Leader stats removed (fields not present in AgentStats)
+
         // Detectar cambios de privilegio
         static string lastPrivileges[5] = {"", "", "", "", ""};
         if(lastPrivileges[i] != "" && lastPrivileges[i] != privilege)
