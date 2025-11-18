@@ -1245,7 +1245,7 @@ m_currentMetrics.regime_changed = false;
         // Parámetros comunes
         params.partialClosePercent = 0.2;
         params.srSensitivityMultiplier = 0.7;
-        params.minAccumulationBars = (regime == REGIME_VOLATILE) ? 10 : 7;
+        params.minAccumulationBars = (regime == REGIME_VOLATILE) ? 2 : 2;  // Reducido de 10:7 a 2:2 para permitir trades
         params.requireVolumeConfirmation = (regime == REGIME_LOW_LIQUIDITY);
         
         m_parameters[regime] = params;
