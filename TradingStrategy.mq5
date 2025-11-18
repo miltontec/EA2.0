@@ -949,10 +949,8 @@ void ProcessWaitingSRTouch()
     if(debugCounter >= 50)
     {
         debugCounter = 0;
-        int totalLevels = g_srManager.GetLevelCount();
         double currentPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
         Print("╔═══ DEBUG: Estado S/R Touch Detection ═══╗");
-        Print("║ Niveles S/R activos: ", totalLevels);
         Print("║ Precio actual: ", DoubleToString(currentPrice, _Digits));
         Print("║ Toque detectado: ", touchDetected ? "SÍ" : "NO");
         if(touchDetected)
