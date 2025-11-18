@@ -48,15 +48,6 @@ enum TRADING_STATE
     STATE_CYCLE_COMPLETE
 };
 
-enum ENUM_MARKET_SESSION
-{
-    SESSION_ASIAN,
-    SESSION_LONDON,
-    SESSION_NEWYORK,
-    SESSION_OVERLAP,
-    SESSION_CLOSED
-};
-
 //+------------------------------------------------------------------+
 //| ESTRUCTURAS                                                      |
 //+------------------------------------------------------------------+
@@ -461,7 +452,7 @@ int OnInit()
     g_votingStats = new VotingStatistics();
     if(g_votingStats != NULL)
     {
-        g_votingStats.Initialize(g_metaLearning);
+        g_votingStats.Initialize();
         g_votingStats.SetParameters(100, MinTotalConviction, MinConsensusStrength);
         g_votingStats.SetDirectionLock(true);
         Print("✓ Neural Consensus Network inicializado");
@@ -1096,24 +1087,24 @@ void AdjustAgentWeightsDynamically()
         {
             // Reducir peso drásticamente
             g_dynamicWeights[i] = 0.5;
-            Print("⚠️ ", GetAgentName(i), " peso reducido a 0.5 por mal rendimiento");
+            Print("⚠️ ", GetAgentName((ENUM_COMPONENT_TYPE)i), " peso reducido a 0.5 por mal rendimiento");
         }
         else if(recentPerformance > 0.7) // Win rate > 70%
         {
             // Aumentar peso significativamente
             g_dynamicWeights[i] = 2.0;
-            Print("✅ ", GetAgentName(i), " peso aumentado a 2.0 por excelente rendimiento");
+            Print("✅ ", GetAgentName((ENUM_COMPONENT_TYPE)i), " peso aumentado a 2.0 por excelente rendimiento");
         }
         else
         {
             g_dynamicWeights[i] = 1.0;
         }
-        
+
         // Super-boost para agentes en racha
         if(g_metaLearning.m_agentStats[i].consecutive_wins >= 5)
         {
             g_dynamicWeights[i] *= 1.5;
-            Print("🔥 ", GetAgentName(i), " en racha! Peso x1.5");
+            Print("🔥 ", GetAgentName((ENUM_COMPONENT_TYPE)i), " en racha! Peso x1.5");
         }
     }
 }
@@ -3014,18 +3005,18 @@ void AnalyzePostCyclePerformance(bool success, double profit)
 }
 
 // FUNCIONES AUXILIARES NUEVAS
-void UpdateStatsFromCompleteRecord(CompleteTradeRecord* record, bool isWin, double profit)
+void UpdateStatsFromCompleteRecord(const CompleteTradeRecord &record, bool isWin, double profit)
 {
     Print("Actualizando estadísticas desde registro completo");
-    
+
     for(int i = 0; i < 5; i++)
     {
         bool participated = false;
-        
+
         // Verificar participación del agente
         for(int j = 0; j < 5; j++)
         {
-            if(record.participating_agents[j] == g_metaLearning.m_agentNames[i] && 
+            if(record.participating_agents[j] == g_metaLearning.m_agentNames[i] &&
                record.agent_confidences[j] > 0)
             {
                 participated = true;

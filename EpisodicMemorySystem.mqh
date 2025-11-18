@@ -87,9 +87,46 @@ struct AccumulationContext
 //+------------------------------------------------------------------+
 
 //+------------------------------------------------------------------+
-//| CompleteTradeRecord: class version to allow pointers in MQL5     |
+//| CompleteTradeRecord: Complete trade record structure            |
 //+------------------------------------------------------------------+
-#include <CompleteTradeRecord.mqh>
+struct CompleteTradeRecord
+{
+    ulong consensus_id;
+    ulong order_ticket;
+    datetime consensus_time;
+    int consensus_direction;
+    double consensus_strength;
+    double total_conviction;
+    string leading_agent;
+
+    string participating_agents[5];
+    double agent_votes[5];
+    double agent_confidences[5];
+
+    bool veto_used;
+    double initial_volatility;
+    double initial_momentum;
+    double initial_fear;
+    double initial_greed;
+    int session_type;
+    double sr_level_strength;
+
+    datetime order_open_time;
+    double order_open_price;
+    double order_lot_size;
+    double order_sl;
+    double order_tp;
+
+    datetime order_close_time;
+    double order_close_price;
+    double order_profit_points;
+    double order_profit_currency;
+
+    double max_favorable_excursion;
+    double max_adverse_excursion;
+    int bars_duration;
+    bool was_successful;
+};
 
 
 
